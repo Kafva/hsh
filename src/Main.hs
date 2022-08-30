@@ -1,38 +1,80 @@
--- https://www.haskell.org/tutorial/intro.html
--- http://learnyouahaskell.com/introduction
--- ghc Main.hs -o sha256 && ./sha256
---
--- monad..?
-
+-- https://hoogle.haskell.org/?hoogle=format
+import Text.Printf
+import System.Exit
+import Control.Monad -- `when`
 import Data.List
+import System.Environment -- getArgs
 import System.IO
-import System.Directory
-import Debug.Trace (trace, traceId, traceShow)
+import System.Console.GetOpt
 
--- Impure functions are cleanly separated in Haskell from pure functions
--- putStrLn() returns an IO action
--- IO is the keyword that denotes impure functions
--- Unless we use 'do' we can only have one print statement, to use 'printf-debugging'
--- we should rely on 'trace' (which does not haft to be within in the main monad)
+programVersion = "0.1.0"
+data Algorithm = SHA1 | SHA256
 
--- 'take' returns the first 'n' items of a list
--- 'drop' returns the last 'n' items of a list 
-slice li start end = take end (drop start li)
+-- https://wiki.haskell.org/High-level_option_handling_with_GetOpt
+-- Dictionary of CLI options
+-- Note the use of 'deriving Show' to allow for the data to be
+-- easily shown to stdout.
+--
+-- Names in a dictonary are global..?
+data Flags = Flags { 
+  help :: Bool,
+  version :: Bool,          
+  debug :: Bool,
+  algorithm :: Integer
+} deriving Show
 
-profile      = "/Users/jonas/Library/Thunderbird/Profiles"
-home = trace ("Calling getHomeDirectory"++profile) getHomeDirectory
+defaultOptions :: Flags
+defaultOptions =  Flags {
+  help = False,
+  version = False,
+  debug = False,
+  algorithm = 1
+}
 
+-- OptDescr is a type that holds
+-- Option {
+--  [Char]                   Short options 
+--  [String]                 Long options 
+--  (ArgDescr a)             Descriptor (a Flags -> IO Flags function in our case) 
+--  String                   Help text
+-- }
+-- By mapping to an `IO` function we can print stuff directly in the handler.
+options :: [OptDescr (Flags -> IO Flags)]
+options = 
+  [ 
+    Option ['V'] ["version"] (NoArg (\_ -> do 
+      putStrLn programVersion 
+      exitWith ExitSuccess
+    )) "Show version",
+    Option ['h'] ["help"] (NoArg (\_ -> do 
+      prg <- getProgName
+      hPutStrLn stderr $ usageInfo ("usage: "++prg) options
+      exitWith ExitSuccess
+    )) "Print help information",
+    Option ['d'] ["debug"] (NoArg (\opt ->
+      return opt { debug = True }
+    )) "Print debug output",
+    Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
+      -- Note that `ReqArg` has two arguments for its function
+      -- `read` will perform string->int conversion
+      return opt { algorithm = read arg }
+    ) "ALG")
+    "Select algorithm (1-3)"
+  ]
 
+--tracer :: (Show a) => a -> a
+--tracer a = trace("opts:"++show a)
+
+main :: IO ()
 main = do
-  print $ slice profile 0 10
+  args <- getArgs
+  -- `actions` will hold the (Flags -> IO Flags) functions defined for each flag
+  let (actions, nonOptions, errors) = getOpt RequireOrder options args 
 
+  -- With `foldl`, we apply the bind operator to each function in `actions`
+  opts <- foldl (>>=) (return defaultOptions) actions 
 
-
-
-
-
---x = [3,1] ++ [2,1]
---q = compare 3 4
-
+  -- Access to fields: 'object.field' -> 'field object'
+  when (debug opts) $ putStrLn $ show opts
 
 
