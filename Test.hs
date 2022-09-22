@@ -2,7 +2,15 @@
 -- https://www.haskell.org/tutorial/intro.html
 -- http://learnyouahaskell.com/introduction
 -- ghc Main.hs -o sha && ./sha
+-- =============================================================================
+-- Using `trace` and putStrLn is generally a bad idea, ghci is the preffered way
+-- of debugging (we cannot run our full program like this since it reads from
+-- stdin).
 --
+-- ghci -ghci-script dbg.ghci
+--    :break <...>
+--    main
+--    :print <...>
 -- =============================================================================
 -- Monads ("computation builders")
 -- A monad is essentially a pattern for chaining operations,

@@ -1,0 +1,20 @@
+-- vi: ft=haskell
+-- :print <...>
+--
+:load Md5.hs
+import Md5
+
+import Data.Text.Lazy as TL
+import Data.Text.Lazy.Encoding as TLE
+
+:break hash
+
+-- pack ::       String -> Text
+-- encodeUtf8 :: Text -> ByteString
+hash $ TLE.encodeUtf8 $ pack "ABCD"
+
+
+
+
+
+

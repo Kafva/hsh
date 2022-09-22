@@ -1,3 +1,4 @@
+SHELL=/bin/bash
 EXEC=sha
 CFLAGS?=-Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints 
 GHCOPTS=-threaded
@@ -10,8 +11,12 @@ $(EXEC): src/*.hs
 clean:
 	rm -f $(EXEC) **/*.o **/*.hi *.hi *.o
 
-.PHONY: test
+.PHONY: test dbg ghci
 test: Test.hs
 	rm -f sha
 	$(HC) $(CFLAGS) $(GHCOPTS) $< -o sha
+dbg:
+	cd src && ghci -ghci-script dbg.ghci < <(echo ":quit")
+ghci:
+	cd src && ghci -ghci-script dbg.ghci
 

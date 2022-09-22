@@ -6,8 +6,10 @@ import Data.List
 import System.Environment -- getArgs
 import System.IO
 import System.Console.GetOpt
+import Debug.Trace
+import qualified Data.ByteString.Lazy as BL
 
-import qualified Sha1 as Sha1
+import qualified Md5 as Md5
 
 programVersion = "0.1.0"
 data Algorithm = MD5 | SHA1 | SHA256
@@ -76,5 +78,10 @@ main = do
   -- Access to fields: 'object.field' -> 'field object'
   when (debug opts) $ putStrLn $ show opts
 
-  putStrLn $ Sha1.hash "hash me"
+  -- Reads from stdin (does not wait when no input is given)
+  input <- BL.getContents
+  BL.putStr input
+  
+
+  putStrLn $ Md5.hash input
 
