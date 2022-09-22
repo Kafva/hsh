@@ -8,14 +8,13 @@ import System.IO
 import System.Console.GetOpt
 
 programVersion = "0.1.0"
-data Algorithm = SHA1 | SHA256
+data Algorithm = MD5 | SHA1 | SHA256
 
 -- https://wiki.haskell.org/High-level_option_handling_with_GetOpt
 -- Dictionary of CLI options
 -- Note the use of 'deriving Show' to allow for the data to be
 -- easily shown to stdout.
 --
--- Names in a dictonary are global..?
 data Flags = Flags { 
   help :: Bool,
   version :: Bool,          
@@ -62,9 +61,6 @@ options =
     "Select algorithm (1-3)"
   ]
 
---tracer :: (Show a) => a -> a
---tracer a = trace("opts:"++show a)
-
 main :: IO ()
 main = do
   args <- getArgs
@@ -72,6 +68,7 @@ main = do
   let (actions, nonOptions, errors) = getOpt RequireOrder options args 
 
   -- With `foldl`, we apply the bind operator to each function in `actions`
+  --  Recall that `return` wraps a value in a monad
   opts <- foldl (>>=) (return defaultOptions) actions 
 
   -- Access to fields: 'object.field' -> 'field object'
