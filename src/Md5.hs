@@ -1,7 +1,8 @@
 module Md5 where
 import qualified Data.ByteString.Lazy as BL
-import Debug.Trace
+import Data.Word as W
 
+import Data.Text.Lazy.Encoding as TLE
 
 
 {-
@@ -13,15 +14,21 @@ import Debug.Trace
   The input stream is broken up into 512 bit (64 bytes) blocks
   Padding is ALWAYS performed as follows:
     1. Append '1' bit
-    2. Fill with '0' untill the integer value of the input adhears to
+    2. Fill with '0' untill the bit-length of the input mets:
         input % 512 == 448
 
-  Our input will
+  Our input will always be a multiple of 8
 
 -}
 
-hash :: BL.ByteString -> String
+padBlock :: [W.Word8] -> [W.Word8]
+--padBlock :: [Char] -> [Char]
+padBlock bytes = if (mod (length bytes) 512 /= 448)
+                 then bytes ++ [0x0]
+                 else bytes
+
+
+hash :: BL.ByteString -> [W.Word8]
 hash a = do
-   bytes <- BL.unpack a
-   ""
+   padBlock $ BL.unpack a
 

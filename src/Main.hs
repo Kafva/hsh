@@ -80,8 +80,7 @@ main = do
 
   -- Reads from stdin (does not wait when no input is given)
   input <- BL.getContents
-  BL.putStr input
-  
+  --BL.putStr input
 
-  putStrLn $ Md5.hash input
+  putStrLn $ show $ Md5.hash input
 
