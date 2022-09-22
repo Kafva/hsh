@@ -5,7 +5,7 @@ HC?=ghc
 
 
 $(EXEC): src/*.hs
-	$(HC) $(CFLAGS) $(GHCOPTS) $< -o $@
+	$(HC) $(CFLAGS) $(GHCOPTS) $^ -o $@
 
 clean:
 	rm -f $(EXEC) **/*.o **/*.hi *.hi *.o

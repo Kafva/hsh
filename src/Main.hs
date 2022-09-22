@@ -7,6 +7,8 @@ import System.Environment -- getArgs
 import System.IO
 import System.Console.GetOpt
 
+import qualified Sha1 as Sha1
+
 programVersion = "0.1.0"
 data Algorithm = MD5 | SHA1 | SHA256
 
@@ -74,4 +76,5 @@ main = do
   -- Access to fields: 'object.field' -> 'field object'
   when (debug opts) $ putStrLn $ show opts
 
+  putStrLn $ Sha1.hash "hash me"
 
