@@ -22,4 +22,4 @@ dbg:
 ghci:
 	cd src && ghci -ghci-script dbg.ghci
 run:
-	make sha && printf 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|./sha
+	make sha && printf 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|./sha -d
