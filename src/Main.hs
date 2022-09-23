@@ -1,18 +1,18 @@
 -- https://hoogle.haskell.org/?hoogle=format
-import Text.Printf
 import System.Exit
-import Control.Monad -- `when`
-import Data.List
+import Control.Monad      -- `when`
 import System.Environment -- getArgs
 import System.IO
 import System.Console.GetOpt
-import Debug.Trace
 import qualified Data.ByteString.Lazy as BL
+import Data.Foldable (for_)
+
 
 import qualified Md5 as Md5
 
-programVersion = "0.1.0"
-data Algorithm = MD5 | SHA1 | SHA256
+programVersion :: String
+programVersion = "0.1.0" 
+--data Algorithm = MD5 | SHA1 | SHA256
 
 -- https://wiki.haskell.org/High-level_option_handling_with_GetOpt
 -- Dictionary of CLI options
@@ -69,7 +69,12 @@ main :: IO ()
 main = do
   args <- getArgs
   -- `actions` will hold the (Flags -> IO Flags) functions defined for each flag
-  let (actions, nonOptions, errors) = getOpt RequireOrder options args 
+  let (actions, _, errors) = getOpt RequireOrder options args 
+
+  -- Print command line parsing errors and exit if any occured
+  when ((length errors) > 0) $ do
+    for_ errors putStr
+    exitFailure
 
   -- With `foldl`, we apply the bind operator to each function in `actions`
   --  Recall that `return` wraps a value in a monad
@@ -87,3 +92,4 @@ main = do
     putStrLn $ show out
     putStrLn $ show $ length out
 
+  exitSuccess

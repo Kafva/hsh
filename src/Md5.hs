@@ -6,7 +6,7 @@
 
   The input stream is broken up into 512 bit (64 bytes) blocks
 -}
-module Md5 where
+module Md5 (hash) where
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.Word as W
