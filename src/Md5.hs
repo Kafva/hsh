@@ -8,9 +8,8 @@
 -}
 module Md5 where
 import qualified Data.ByteString.Lazy as BL
-import Data.Word as W
-
-import Data.Text.Lazy.Encoding as TLE
+import qualified Data.Text.Lazy.Encoding as TLE
+import qualified Data.Word as W
 
 
 
