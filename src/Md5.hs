@@ -41,6 +41,7 @@ hash a = do
 
    -- Append 1 bit to the input
    padBlock $ bytes ++ [0b1000_0000]
+   appendLength bytes (length bytes)
 
    
 
