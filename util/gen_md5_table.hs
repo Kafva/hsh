@@ -13,7 +13,7 @@
 
 
 fn :: Float -> Int
-fn i = floor $ fromIntegral 2**32 * (abs $ sin (i+1))
+fn i = floor $ 2**32 * (abs $ sin (i+1))
 --  where
 --  i = fromIntegral i :: Float
 
