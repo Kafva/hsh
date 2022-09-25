@@ -6,18 +6,12 @@
    end for
 -}
 
-
-
---table = [] 
-
-
-
 fn :: Float -> Int
-fn i = floor $ 2**32 * (abs $ sin (i+1))
---  where
---  i = fromIntegral i :: Float
+fn i = floor (2**32 * (abs $ sin (i+1)))
 
 main :: IO ()
 main = do
-  putStrLn $ show $ fn 6
+  let table = map fn [0..63]
+  putStrLn $ show (table!!0)
+  putStrLn "expected> 3614090360"
 
