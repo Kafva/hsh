@@ -17,6 +17,12 @@ data Digest = Digest {
   d :: W.Word32
 }
 
+{-
+-}
+--t = [
+--
+--]
+
 {-| (1) PADDING BITS
     Append a '1' bit and fill with '0' until the bit-length of the
     input adheres to:
@@ -43,7 +49,6 @@ appendLength bytes len = bytes ++ (BL.unpack $ B.encode len)
 -- Auxillary functions --
 -- Each of the auxillary functions are defined to act over bits
 -- in each word and map 3 words onto 1.
-
 f :: B.Word8 -> B.Word8 -> B.Word8 -> B.Word8
 f x y z = (x .&. y) .|. ((complement x) .&. z)
 

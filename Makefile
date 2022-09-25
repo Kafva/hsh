@@ -9,7 +9,7 @@ $(EXEC): src/*.hs
 	$(HC) $(CFLAGS) $(GHCOPTS) $^ -o $@
 
 clean:
-	rm -f $(EXEC) **/*.o **/*.hi *.hi *.o
+	rm -f $(EXEC) **/*.o **/*.hi *.hi *.o gen_md5_table
 
 
 
@@ -23,3 +23,6 @@ ghci:
 	cd src && ghci -ghci-script dbg.ghci
 run:
 	make sha && printf 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|./sha -d
+
+gen_md5_table: util/gen_md5_table.hs
+	$(HC) $(CFLAGS) $(GHCOPTS) $^ -o gen_md5_table && ./gen_md5_table
