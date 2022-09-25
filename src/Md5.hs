@@ -2,15 +2,28 @@
   https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
 
   Hash algorithms map a variable length bit-string onto a fixed length
-  bit-string, 128 bits (16 bytes) in the case of MD5.
+  bit-string, 128 bits (16 bytes) in the case of MD5. 
 
   The input stream is broken up into 512 bit (64 bytes) blocks
 -}
 module Md5 (hash) where
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Int as I
+import qualified Data.Word as W
 import qualified Data.Binary as B
 
+{-
+  A 16 byte buffer divided into 4 (32 bit) registers is used to compute
+  the digest (a b c d).
+
+  Word ~ Unsigned
+-}
+data Digest = Digest {
+  a :: W.Word32,
+  b :: W.Word32,
+  c :: W.Word32,
+  d :: W.Word32
+}
 
 {-| (1) PADDING BITS
     Append a '1' bit and fill with '0' until the bit-length of the 
@@ -47,6 +60,13 @@ hash a = do
    -- The resulting array will be evenly divisible into blocks 
    -- of 512 bits (64 bytes)
    let blocks = appendLength padded original_len
+
+   let digest = Digest {
+      a = 0x0123_4567,
+      b = 0x89ab_cdef,
+      c = 0xfedc_ba98,
+      d = 0x7654_3210
+   }
 
    blocks
 
