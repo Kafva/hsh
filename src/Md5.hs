@@ -5,6 +5,8 @@ import qualified Data.Word as W
 import qualified Data.Binary as B
 import Data.Bits ((.&.), (.|.), complement, xor)  -- '&', '|' etc.
 
+import qualified Constants as CONST
+
 {-
   A 16 byte buffer divided into 4 (32 bit) registers is used to compute
   the digest (a b c d).
@@ -16,12 +18,6 @@ data Digest = Digest {
   c :: W.Word32,
   d :: W.Word32
 }
-
-{-
--}
---t = [
---
---]
 
 {-| (1) PADDING BITS
     Append a '1' bit and fill with '0' until the bit-length of the
@@ -89,6 +85,7 @@ hash a = do
 
    -- Each 512 bit block is split into 16 words (each being 32-bit)
 
+   
    blocks
 
 
