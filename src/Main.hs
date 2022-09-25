@@ -46,7 +46,8 @@ options :: [OptDescr (Flags -> IO Flags)]
 options = 
   [ 
     Option ['V'] ["version"] (NoArg (\_ -> do 
-      putStrLn programVersion 
+      prg <- getProgName
+      putStrLn $ prg ++ " " ++ programVersion 
       exitWith ExitSuccess
     )) "Show version",
     Option ['h'] ["help"] (NoArg (\_ -> do 

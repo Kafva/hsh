@@ -9,7 +9,6 @@
 module Md5 (hash) where
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Lazy.Encoding as TLE
-import qualified Data.Word as W
 import qualified Data.Int as I
 import qualified Data.Binary as B
 
@@ -24,7 +23,7 @@ import qualified Data.Binary as B
   Padding should be performed even if the input length already has 448
   as the remainder mod 512.
 -}
-padBlock :: [W.Word8] -> [W.Word8]
+padBlock :: [B.Word8] -> [B.Word8]
 padBlock bytes = if (mod (length bytes) (div 512 8) /= (div 448 8))
                  then padBlock $ bytes ++ [0x0]
                  else bytes
@@ -33,12 +32,16 @@ padBlock bytes = if (mod (length bytes) (div 512 8) /= (div 448 8))
 {- (2) APPEND LENGTH
   Append the 64 bit representation of the original length of the message
 -}
-appendLength :: [W.Word8] -> I.Int64 -> [W.Word8]
-appendLength bytes length = bytes ++ B.encode length
+appendLength :: [B.Word8] -> Int -> [B.Word8]
+appendLength bytes length = bytes ++ (BL.unpack $ B.encode length)
 
-hash :: BL.ByteString -> [W.Word8]
+hash :: BL.ByteString -> [B.Word8]
 hash a = do
+   let bytes = BL.unpack a
+
    -- Append 1 bit to the input
-   padBlock $ BL.unpack a ++ [0b1000_0000]
+   padBlock $ bytes ++ [0b1000_0000]
+
+   
 
 
