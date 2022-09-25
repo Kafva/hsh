@@ -1,21 +1,13 @@
-{-
-  https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
-
-  Hash algorithms map a variable length bit-string onto a fixed length
-  bit-string, 128 bits (16 bytes) in the case of MD5. 
-
-  The input stream is broken up into 512 bit (64 bytes) blocks
--}
 module Md5 (hash) where
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Int as I
 import qualified Data.Word as W
 import qualified Data.Binary as B
+import Data.Bits ( (.&.), (.|.), complement )  -- '&', '|' etc.
 
 {-
   A 16 byte buffer divided into 4 (32 bit) registers is used to compute
   the digest (a b c d).
-
   Word ~ Unsigned
 -}
 data Digest = Digest {
@@ -26,7 +18,7 @@ data Digest = Digest {
 }
 
 {-| (1) PADDING BITS
-    Append a '1' bit and fill with '0' until the bit-length of the 
+    Append a '1' bit and fill with '0' until the bit-length of the
     input adheres to:
         input % 512 == 448 ~
         input % 64  == 56
@@ -48,6 +40,19 @@ appendLength :: [B.Word8] -> I.Int64 -> [B.Word8]
 appendLength bytes len = bytes ++ (BL.unpack $ B.encode len)
 
 
+-- Auxillary functions --
+-- Each of the auxillary functions are defined to act over bits
+-- in each word.
+
+f :: B.Word8 -> B.Word8 -> B.Word8 -> B.Word8
+f x y z = (x .&. y) .|. ((complement x) .|. z)
+
+{-
+  https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
+
+  Hash algorithms map a variable length bit-string onto a fixed length
+  bit-string, 128 bits (16 bytes) in the case of MD5.
+-}
 hash :: BL.ByteString -> [B.Word8]
 hash a = do
    let bytes = BL.unpack a
@@ -56,8 +61,8 @@ hash a = do
    -- Append 1 bit to the input
    let padded = padBlock $ bytes ++ [0b1000_0000]
 
-   -- Append Int64 representation of length
-   -- The resulting array will be evenly divisible into blocks 
+   -- Append Int64 representation of the original length
+   -- The resulting array will be evenly divisible into blocks
    -- of 512 bits (64 bytes)
    let blocks = appendLength padded original_len
 
@@ -67,6 +72,8 @@ hash a = do
       c = 0xfedc_ba98,
       d = 0x7654_3210
    }
+
+   -- Each 512 bit block is split into 16 words (each being 32-bit)
 
    blocks
 

@@ -4,19 +4,19 @@
 :load Md5.hs
 import Md5
 
+import Data.Binary
 import Data.Text.Lazy as TL
 import Data.Text.Lazy.Encoding as TLE
-
-:break hash
 
 -- pack ::       String -> Text
 -- encodeUtf8 :: Text -> ByteString
 let out = hash $ TLE.encodeUtf8 $ pack "ABCD"
 
+putStrLn $ show out
 
-putStrLn out
+let q = f 0x1 0x2 0x3
 
-
+putStrLn $ show q
 
 
 
