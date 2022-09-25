@@ -15,7 +15,12 @@ let out = hash $ TLE.encodeUtf8 $ pack "ABCD"
 putStrLn $ show out
 
 let q = f 0x1 0x2 0x3
-
+putStrLn $ show q
+let q = g 0x1 0x2 0x3
+putStrLn $ show q
+let q = h 0x1 0x2 0x3
+putStrLn $ show q
+let q = i 0x1 0x2 0x3
 putStrLn $ show q
 
 

@@ -3,7 +3,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Int as I
 import qualified Data.Word as W
 import qualified Data.Binary as B
-import Data.Bits ( (.&.), (.|.), complement )  -- '&', '|' etc.
+import Data.Bits ((.&.), (.|.), complement, xor)  -- '&', '|' etc.
 
 {-
   A 16 byte buffer divided into 4 (32 bit) registers is used to compute
@@ -42,10 +42,19 @@ appendLength bytes len = bytes ++ (BL.unpack $ B.encode len)
 
 -- Auxillary functions --
 -- Each of the auxillary functions are defined to act over bits
--- in each word.
+-- in each word and map 3 words onto 1.
 
 f :: B.Word8 -> B.Word8 -> B.Word8 -> B.Word8
-f x y z = (x .&. y) .|. ((complement x) .|. z)
+f x y z = (x .&. y) .|. ((complement x) .&. z)
+
+g :: B.Word8 -> B.Word8 -> B.Word8 -> B.Word8
+g x y z = (x .&. z) .|. (y .&. (complement z))
+
+h :: B.Word8 -> B.Word8 -> B.Word8 -> B.Word8
+h x y z = xor (xor x y) z
+
+i :: B.Word8 -> B.Word8 -> B.Word8 -> B.Word8
+i x y z = xor y $ x .&. (complement z)
 
 {-
   https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
