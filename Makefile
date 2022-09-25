@@ -26,3 +26,4 @@ run:
 
 gen_md5_table: util/gen_md5_table.hs
 	$(HC) $(CFLAGS) $(GHCOPTS) $^ -o gen_md5_table && ./gen_md5_table
+	python3 -c 'from math import sin, floor; print(floor(2**32 * abs(sin(0+1))))'

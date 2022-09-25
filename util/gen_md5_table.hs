@@ -7,11 +7,12 @@
 -}
 
 fn :: Float -> Int
-fn i = floor (2**32 * (abs $ sin (i+1)))
+fn i = floor (2**32 * (abs $ sin (i + 1)))
 
 main :: IO ()
 main = do
   let table = map fn [0..63]
-  putStrLn $ show (table!!0)
-  putStrLn "expected> 3614090360"
+  --putStrLn $ show table
+  --putStrLn $ show (table!!0)
+  putStrLn $ show $ floor $ (2**32 * (abs $ sin 1))
 
