@@ -44,8 +44,10 @@ hash a = do
    let padded = padBlock $ bytes ++ [0b1000_0000]
 
    -- Append Int64 representation of length
-   let withLength = appendLength padded original_len
+   -- The resulting array will be evenly divisible into blocks 
+   -- of 512 bits (64 bytes)
+   let blocks = appendLength padded original_len
 
-   withLength
+   blocks
 
 
