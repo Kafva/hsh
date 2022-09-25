@@ -8,7 +8,6 @@
 -}
 module Md5 (hash) where
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.Int as I
 import qualified Data.Binary as B
 
@@ -32,17 +31,21 @@ padBlock bytes = if (mod (length bytes) (div 512 8) /= (div 448 8))
 {- (2) APPEND LENGTH
   Append the 64 bit representation of the original length of the message
 -}
-appendLength :: [B.Word8] -> Int -> [B.Word8]
-appendLength bytes length = bytes ++ (BL.unpack $ B.encode length)
+appendLength :: [B.Word8] -> I.Int64 -> [B.Word8]
+appendLength bytes len = bytes ++ (BL.unpack $ B.encode len)
+
 
 hash :: BL.ByteString -> [B.Word8]
 hash a = do
    let bytes = BL.unpack a
+   let original_len = fromIntegral(length bytes) :: I.Int64
 
    -- Append 1 bit to the input
-   padBlock $ bytes ++ [0b1000_0000]
-   appendLength bytes (length bytes)
+   let padded = padBlock $ bytes ++ [0b1000_0000]
 
-   
+   -- Append Int64 representation of length
+   let withLength = appendLength padded original_len
+
+   withLength
 
 
