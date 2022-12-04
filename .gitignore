@@ -2,6 +2,7 @@ md5
 gen_md5_table
 test
 sha
+hsh
 sha256
 *.hi
 .vagrant

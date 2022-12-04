@@ -1,5 +1,5 @@
 SHELL=/bin/bash
-EXEC=sha
+EXEC=hsh
 CFLAGS?=-Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints 
 GHCOPTS=-threaded
 HC?=ghc
@@ -15,14 +15,14 @@ clean:
 
 #==============================================================================#
 test: Test.hs
-	rm -f sha
-	$(HC) $(CFLAGS) $(GHCOPTS) $< -o sha
+	rm -f $(EXEC)
+	$(HC) $(CFLAGS) $(GHCOPTS) $< -o $(EXEC)
 dbg:
 	cd src && ghci -ghci-script dbg.ghci < <(echo ":quit")
 ghci:
 	cd src && ghci -ghci-script dbg.ghci
 run:
-	make sha && printf 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|./sha -d
+	make $(EXEC) && printf 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|./$(EXEC) -d
 
 gen_md5_table: util/gen_md5_table.hs
 	$(HC) $(CFLAGS) $(GHCOPTS) $^ -o gen_md5_table && ./gen_md5_table
