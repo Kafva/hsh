@@ -11,7 +11,7 @@ import Data.Foldable (for_)
 import qualified Md5 as Md5
 
 programVersion :: String
-programVersion = "0.1.0" 
+programVersion = "0.1.0"
 --data Algorithm = MD5 | SHA1 | SHA256
 
 -- https://wiki.haskell.org/High-level_option_handling_with_GetOpt
@@ -19,9 +19,9 @@ programVersion = "0.1.0"
 -- Note the use of 'deriving Show' to allow for the data to be
 -- easily shown to stdout.
 --
-data Flags = Flags { 
+data Flags = Flags {
   help :: Bool,
-  version :: Bool,          
+  version :: Bool,
   debug :: Bool,
   algorithm :: Integer
 } deriving Show
@@ -36,21 +36,21 @@ defaultOptions =  Flags {
 
 -- OptDescr is a type that holds
 -- Option {
---  [Char]                   Short options 
---  [String]                 Long options 
---  (ArgDescr a)             Descriptor (a Flags -> IO Flags function in our case) 
+--  [Char]                   Short options
+--  [String]                 Long options
+--  (ArgDescr a)             Descriptor (a Flags -> IO Flags function in our case)
 --  String                   Help text
 -- }
 -- By mapping to an `IO` function we can print stuff directly in the handler.
 options :: [OptDescr (Flags -> IO Flags)]
-options = 
-  [ 
-    Option ['V'] ["version"] (NoArg (\_ -> do 
+options =
+  [
+    Option ['V'] ["version"] (NoArg (\_ -> do
       prg <- getProgName
-      putStrLn $ prg ++ " " ++ programVersion 
+      putStrLn $ prg ++ " " ++ programVersion
       exitWith ExitSuccess
     )) "Show version",
-    Option ['h'] ["help"] (NoArg (\_ -> do 
+    Option ['h'] ["help"] (NoArg (\_ -> do
       prg <- getProgName
       hPutStrLn stderr $ usageInfo ("usage: "++prg) options
       exitWith ExitSuccess
@@ -70,7 +70,7 @@ main :: IO ()
 main = do
   args <- getArgs
   -- `actions` will hold the (Flags -> IO Flags) functions defined for each flag
-  let (actions, _, errors) = getOpt RequireOrder options args 
+  let (actions, _, errors) = getOpt RequireOrder options args
 
   -- Print command line parsing errors and exit if any occured
   when ((length errors) > 0) $ do
@@ -79,7 +79,7 @@ main = do
 
   -- With `foldl`, we apply the bind operator to each function in `actions`
   --  Recall that `return` wraps a value in a monad
-  opts <- foldl (>>=) (return defaultOptions) actions 
+  opts <- foldl (>>=) (return defaultOptions) actions
 
   -- Access to fields: 'object.field' -> 'field object'
   when (debug opts) $ putStrLn $ show opts

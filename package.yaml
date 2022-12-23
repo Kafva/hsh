@@ -1,40 +1,38 @@
-name:                hsh
-version:             0.1.0.0
-github:              "Kafva/hsh"
-license:             BSD3
-author:              "Kafva"
-maintainer:          "jonas@kafva.one"
-copyright:           "2022 Kafva"
+---
+name: hsh
+version: 0.1.0.0
+github: Kafva/hsh
+license: BSD3
+author: Kafva
+maintainer: jonas@kafva.one
+copyright: 2022 Kafva
 
 extra-source-files:
-- README.md
-- Makefile
+  - README.md
+  - Makefile
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
 # category:            Hash
 
-description:         Please see the README on GitHub at <https://github.com/Kafva/hsh#readme>
+description: Please see the README on GitHub at <https://github.com/Kafva/hsh#readme>
 
-dependencies:
-- base >= 4.7 && < 5
+dependencies: [base >= 4.7 && < 5]
 
 ghc-options:
-- -Wall
-- -Wcompat
-- -Widentities
-- -Wincomplete-record-updates
-- -Wincomplete-uni-patterns
-- -Wmissing-export-lists
-- -Wmissing-home-modules
-- -Wpartial-fields
-- -Wredundant-constraints
+  - -Wall
+  - -Wcompat
+  - -Widentities
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wmissing-export-lists
+  - -Wmissing-home-modules
+  - -Wpartial-fields
+  - -Wredundant-constraints
 
 executables:
   hsh-exe:
-    main:                Main.hs
-    source-dirs:         src
-    ghc-options:
-    - -threaded
-    dependencies:
-    - hsh
+    main: Main.hs
+    source-dirs: src
+    ghc-options: [-threaded]
+    dependencies: [hsh]
