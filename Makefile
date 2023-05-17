@@ -1,17 +1,22 @@
-SHELL=/bin/bash
-EXEC=hsh
-CFLAGS?=-Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints 
-GHCOPTS=-threaded
-HC?=ghc
 .PHONY: test dbg ghci run clean gen_md5_table
 
+SHELL=/bin/bash
+EXEC=hsh
+HC?=ghc
+CFLAGS?=-Wall -Wcompat -Widentities -Wincomplete-record-updates \
+	-Wincomplete-uni-patterns -Wmissing-export-lists \
+	-Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+GHCOPTS=-threaded -odir objs -hidir objs
+
+#==============================================================================#
+
 $(EXEC): src/*.hs
+	@mkdir -p objs
 	$(HC) $(CFLAGS) $(GHCOPTS) $^ -o $@
 
 clean:
-	rm -f $(EXEC) **/*.o **/*.hi *.hi *.o gen_md5_table
-
-
+	rm -f $(EXEC) gen_md5_table
+	rm -rf objs
 
 #==============================================================================#
 test: Test.hs
