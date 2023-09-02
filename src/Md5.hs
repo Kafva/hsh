@@ -65,27 +65,27 @@ i x y z = xor y $ x .&. (complement z)
 -}
 hash :: BL.ByteString -> [B.Word8]
 hash a = do
-   let bytes = BL.unpack a
-   let original_len = fromIntegral(length bytes) :: I.Int64
+    let bytes = BL.unpack a
+    let original_len = fromIntegral(length bytes) :: I.Int64
 
-   -- Append 1 bit to the input
-   let padded = padBlock $ bytes ++ [0b1000_0000]
+    -- Append 1 bit to the input
+    let padded = padBlock $ bytes ++ [0b1000_0000]
 
-   -- Append Int64 representation of the original length
-   -- The resulting array will be evenly divisible into blocks
-   -- of 512 bits (64 bytes)
-   let blocks = appendLength padded original_len
+    -- Append Int64 representation of the original length
+    -- The resulting array will be evenly divisible into blocks
+    -- of 512 bits (64 bytes)
+    let blocks = appendLength padded original_len
 
-   let digest = Digest {
-      a = 0x0123_4567,
-      b = 0x89ab_cdef,
-      c = 0xfedc_ba98,
-      d = 0x7654_3210
-   }
+    let digest = Digest {
+        a = 0x0123_4567,
+        b = 0x89ab_cdef,
+        c = 0xfedc_ba98,
+        d = 0x7654_3210
+    }
 
-   -- Each 512 bit block is split into 16 words (each being 32-bit)
+    -- Each 512 bit block is split into 16 words (each being 32-bit)
 
 
-   blocks
+    blocks
 
 

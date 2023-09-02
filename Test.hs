@@ -129,8 +129,8 @@ index = 0
 -- `Optional` is a _type constructor_ since we give the arbritrary label 'a'
 -- `Some` and `Nothing` are _data constructors_, i.e. they wrap data.
 data Optional a
-  = None
-  | Some a
+    = None
+    | Some a
 
 -- With this we can define functions like:
 myColor :: String -> Optional String

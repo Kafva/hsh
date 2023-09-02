@@ -20,18 +20,18 @@ programVersion = "0.1.0"
 -- easily shown to stdout.
 --
 data Flags = Flags {
-  help :: Bool,
-  version :: Bool,
-  debug :: Bool,
-  algorithm :: Integer
+    help :: Bool,
+    version :: Bool,
+    debug :: Bool,
+    algorithm :: Integer
 } deriving Show
 
 defaultOptions :: Flags
 defaultOptions =  Flags {
-  help = False,
-  version = False,
-  debug = False,
-  algorithm = 1
+    help = False,
+    version = False,
+    debug = False,
+    algorithm = 1
 }
 
 -- OptDescr is a type that holds
@@ -44,53 +44,53 @@ defaultOptions =  Flags {
 -- By mapping to an `IO` function we can print stuff directly in the handler.
 options :: [OptDescr (Flags -> IO Flags)]
 options =
-  [
-    Option ['V'] ["version"] (NoArg (\_ -> do
-      prg <- getProgName
-      putStrLn $ prg ++ " " ++ programVersion
-      exitWith ExitSuccess
-    )) "Show version",
-    Option ['h'] ["help"] (NoArg (\_ -> do
-      prg <- getProgName
-      hPutStrLn stderr $ usageInfo ("usage: "++prg) options
-      exitWith ExitSuccess
-    )) "Print help information",
-    Option ['d'] ["debug"] (NoArg (\opt ->
-      return opt { debug = True }
-    )) "Print debug output",
-    Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
-      -- Note that `ReqArg` has two arguments for its function
-      -- `read` will perform string->int conversion
-      return opt { algorithm = read arg }
-    ) "ALG")
-    "Select algorithm (1-3)"
-  ]
+    [
+        Option ['V'] ["version"] (NoArg (\_ -> do
+            prg <- getProgName
+            putStrLn $ prg ++ " " ++ programVersion
+            exitWith ExitSuccess
+        )) "Show version",
+        Option ['h'] ["help"] (NoArg (\_ -> do
+            prg <- getProgName
+            hPutStrLn stderr $ usageInfo ("usage: "++prg) options
+            exitWith ExitSuccess
+        )) "Print help information",
+        Option ['d'] ["debug"] (NoArg (\opt ->
+            return opt { debug = True }
+        )) "Print debug output",
+        Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
+            -- Note that `ReqArg` has two arguments for its function
+            -- `read` will perform string->int conversion
+            return opt { algorithm = read arg }
+        ) "ALG")
+        "Select algorithm (1-3)"
+    ]
 
 main :: IO ()
 main = do
-  args <- getArgs
-  -- `actions` will hold the (Flags -> IO Flags) functions defined for each flag
-  let (actions, _, errors) = getOpt RequireOrder options args
+    args <- getArgs
+    -- `actions` will hold the (Flags -> IO Flags) functions defined for each flag
+    let (actions, _, errors) = getOpt RequireOrder options args
 
-  -- Print command line parsing errors and exit if any occured
-  when ((length errors) > 0) $ do
-    for_ errors putStr
-    exitFailure
+    -- Print command line parsing errors and exit if any occured
+    when ((length errors) > 0) $ do
+        for_ errors putStr
+        exitFailure
 
-  -- With `foldl`, we apply the bind operator to each function in `actions`
-  --  Recall that `return` wraps a value in a monad
-  opts <- foldl (>>=) (return defaultOptions) actions
+    -- With `foldl`, we apply the bind operator to each function in `actions`
+    --  Recall that `return` wraps a value in a monad
+    opts <- foldl (>>=) (return defaultOptions) actions
 
-  -- Access to fields: 'object.field' -> 'field object'
-  when (debug opts) $ putStrLn $ show opts
+    -- Access to fields: 'object.field' -> 'field object'
+    when (debug opts) $ putStrLn $ show opts
 
-  -- Reads from stdin (does not wait when no input is given)
-  input <- BL.getContents
+    -- Reads from stdin (does not wait when no input is given)
+    input <- BL.getContents
 
-  let out = Md5.hash input
+    let out = Md5.hash input
 
-  when (debug opts) $ do
-    putStrLn $ show out
-    putStrLn $ show $ length out
+    when (debug opts) $ do
+        putStrLn $ show out
+        putStrLn $ show $ length out
 
-  exitSuccess
+    exitSuccess
