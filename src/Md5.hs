@@ -1,11 +1,15 @@
-module Md5 (hash) where
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Int as I
-import qualified Data.Word as W
-import qualified Data.Binary as B
+module Hsh.Md5 (hash) where
+
+import qualified Data.ByteString.Lazy as ByteStringLazy
+import qualified Data.Binary as Binary
+import qualified Data.Word (Word32)
+import qualified Data.Int (Int64)
+
 import Data.Bits ((.&.), (.|.), complement, xor)  -- '&', '|' etc.
 
-import qualified Constants as CONST
+type Byte = Binary.Word8
+type Word32 = Data.Word.Word32
+type Int64 = Data.Int.Int64
 
 {-
   A 16 byte buffer divided into 4 (32 bit) registers is used to compute
@@ -13,10 +17,10 @@ import qualified Constants as CONST
   Word ~ Unsigned
 -}
 data Digest = Digest {
-  a :: W.Word32,
-  b :: W.Word32,
-  c :: W.Word32,
-  d :: W.Word32
+  a :: Word32,
+  b :: Word32,
+  c :: Word32,
+  d :: Word32
 }
 
 {-| (1) PADDING BITS
@@ -29,7 +33,7 @@ data Digest = Digest {
   Padding should be performed even if the input length already has 448
   as the remainder mod 512.
 -}
-padBlock :: [B.Word8] -> [B.Word8]
+padBlock :: [Byte] -> [Byte]
 padBlock bytes = if (mod (length bytes) (div 512 8) /= (div 448 8))
                  then padBlock $ bytes ++ [0x0]
                  else bytes
@@ -38,23 +42,23 @@ padBlock bytes = if (mod (length bytes) (div 512 8) /= (div 448 8))
 {- (2) APPEND LENGTH
   Append the 64 bit representation of the original length of the message
 -}
-appendLength :: [B.Word8] -> I.Int64 -> [B.Word8]
-appendLength bytes len = bytes ++ (BL.unpack $ B.encode len)
+appendLength :: [Byte] -> Int64 -> [Byte]
+appendLength bytes len = bytes ++ (ByteStringLazy.unpack $ Binary.encode len)
 
 
 -- Auxillary functions --
 -- Each of the auxillary functions are defined to act over bits
 -- in each word and map 3 words onto 1.
-f :: B.Word8 -> B.Word8 -> B.Word8 -> B.Word8
+f :: Byte -> Byte -> Byte -> Byte
 f x y z = (x .&. y) .|. ((complement x) .&. z)
 
-g :: B.Word8 -> B.Word8 -> B.Word8 -> B.Word8
+g :: Byte -> Byte -> Byte -> Byte
 g x y z = (x .&. z) .|. (y .&. (complement z))
 
-h :: B.Word8 -> B.Word8 -> B.Word8 -> B.Word8
+h :: Byte -> Byte -> Byte -> Byte
 h x y z = xor (xor x y) z
 
-i :: B.Word8 -> B.Word8 -> B.Word8 -> B.Word8
+i :: Byte -> Byte -> Byte -> Byte
 i x y z = xor y $ x .&. (complement z)
 
 {-
@@ -63,10 +67,10 @@ i x y z = xor y $ x .&. (complement z)
   Hash algorithms map a variable length bit-string onto a fixed length
   bit-string, 128 bits (16 bytes) in the case of MD5.
 -}
-hash :: BL.ByteString -> [B.Word8]
-hash a = do
-    let bytes = BL.unpack a
-    let original_len = fromIntegral(length bytes) :: I.Int64
+hash :: ByteStringLazy.ByteString -> [Byte]
+hash inputData = do
+    let bytes = ByteStringLazy.unpack inputData
+    let original_len = fromIntegral(length bytes) :: Int64
 
     -- Append 1 bit to the input
     let padded = padBlock $ bytes ++ [0b1000_0000]

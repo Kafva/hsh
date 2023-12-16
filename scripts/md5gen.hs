@@ -1,3 +1,4 @@
+#!/usr/bin/env runhaskell
 {-
   Generate the lookup table used for MD5 digest calculation.
 

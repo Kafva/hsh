@@ -1,18 +1,17 @@
--- https://hoogle.haskell.org/?hoogle=format
-import System.Exit
-import Control.Monad      -- `when`
-import System.Environment -- getArgs
-import System.IO
+module Main (main) where
+
+import qualified System.IO as IO
+import qualified System.Exit
+import qualified System.Environment
+import qualified Data.ByteString.Lazy as LazyByteString
 import System.Console.GetOpt
-import qualified Data.ByteString.Lazy as BL
 import Data.Foldable (for_)
+import Control.Monad (when)
 
-
-import qualified Md5 as Md5
+import Hsh.Md5
 
 programVersion :: String
 programVersion = "0.1.0"
---data Algorithm = MD5 | SHA1 | SHA256
 
 -- https://wiki.haskell.org/High-level_option_handling_with_GetOpt
 -- Dictionary of CLI options
@@ -23,7 +22,7 @@ data Flags = Flags {
     help :: Bool,
     version :: Bool,
     debug :: Bool,
-    algorithm :: Integer
+    algorithm :: String
 } deriving Show
 
 defaultOptions :: Flags
@@ -31,7 +30,7 @@ defaultOptions =  Flags {
     help = False,
     version = False,
     debug = False,
-    algorithm = 1
+    algorithm = "md5"
 }
 
 -- OptDescr is a type that holds
@@ -43,54 +42,55 @@ defaultOptions =  Flags {
 -- }
 -- By mapping to an `IO` function we can print stuff directly in the handler.
 options :: [OptDescr (Flags -> IO Flags)]
-options =
-    [
+options = [
         Option ['V'] ["version"] (NoArg (\_ -> do
-            prg <- getProgName
-            putStrLn $ prg ++ " " ++ programVersion
-            exitWith ExitSuccess
+            prg <- System.Environment.getProgName
+            IO.putStrLn $ prg ++ " " ++ programVersion
+            System.Exit.exitSuccess
         )) "Show version",
+
         Option ['h'] ["help"] (NoArg (\_ -> do
-            prg <- getProgName
-            hPutStrLn stderr $ usageInfo ("usage: "++prg) options
-            exitWith ExitSuccess
+            prg <- System.Environment.getProgName
+            IO.hPutStrLn IO.stderr $ usageInfo ("usage: "++prg) options
+            System.Exit.exitSuccess
         )) "Print help information",
+
         Option ['d'] ["debug"] (NoArg (\opt ->
             return opt { debug = True }
         )) "Print debug output",
+
         Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
             -- Note that `ReqArg` has two arguments for its function
             -- `read` will perform string->int conversion
             return opt { algorithm = read arg }
         ) "ALG")
-        "Select algorithm (1-3)"
+        "Select algorithm (md5)"
     ]
+
 
 main :: IO ()
 main = do
-    args <- getArgs
+    args <- System.Environment.getArgs
     -- `actions` will hold the (Flags -> IO Flags) functions defined for each flag
     let (actions, _, errors) = getOpt RequireOrder options args
 
     -- Print command line parsing errors and exit if any occured
     when ((length errors) > 0) $ do
-        for_ errors putStr
-        exitFailure
+        for_ errors IO.putStr
+        System.Exit.exitFailure
 
     -- With `foldl`, we apply the bind operator to each function in `actions`
-    --  Recall that `return` wraps a value in a monad
     opts <- foldl (>>=) (return defaultOptions) actions
 
     -- Access to fields: 'object.field' -> 'field object'
     when (debug opts) $ putStrLn $ show opts
 
     -- Reads from stdin (does not wait when no input is given)
-    input <- BL.getContents
+    input <- LazyByteString.getContents
 
-    let out = Md5.hash input
+    case (algorithm opts) of
+        "md5" -> IO.putStrLn $ show $ Hsh.Md5.hash input
+        _ -> IO.putStrLn "invalid algorithm"
 
-    when (debug opts) $ do
-        putStrLn $ show out
-        putStrLn $ show $ length out
+    System.Exit.exitSuccess
 
-    exitSuccess
