@@ -1,4 +1,4 @@
-module Hsh.Md5 (hash) where
+module Md5 (hash) where
 
 import qualified Data.ByteString.Lazy as ByteStringLazy
 import qualified Data.Binary as Binary

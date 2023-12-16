@@ -1,5 +1,8 @@
 module Main (main) where
 
+import Md5
+import Sha1
+
 import qualified System.IO as IO
 import qualified System.Exit
 import qualified System.Environment
@@ -7,8 +10,6 @@ import qualified Data.ByteString.Lazy as LazyByteString
 import System.Console.GetOpt
 import Data.Foldable (for_)
 import Control.Monad (when)
-
-import Hsh.Md5
 
 programVersion :: String
 programVersion = "0.1.0"
@@ -64,7 +65,7 @@ options = [
             -- `read` will perform string->int conversion
             return opt { algorithm = read arg }
         ) "ALG")
-        "Select algorithm (md5)"
+        "Select algorithm (md5,sha1)"
     ]
 
 
@@ -89,7 +90,8 @@ main = do
     input <- LazyByteString.getContents
 
     case (algorithm opts) of
-        "md5" -> IO.putStrLn $ show $ Hsh.Md5.hash input
+        "md5"  -> IO.putStrLn $ show $ Md5.hash input
+        "sha1" -> IO.putStrLn $ show $ Sha1.hash input
         _ -> IO.putStrLn "invalid algorithm"
 
     System.Exit.exitSuccess
