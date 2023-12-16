@@ -5,11 +5,15 @@ import qualified Data.Binary as Binary
 import qualified Data.Word (Word32)
 import qualified Data.Int (Int64)
 
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax
+
 import Data.Bits ((.&.), (.|.), complement, xor)  -- '&', '|' etc.
 
-type Byte = Binary.Word8
-type Word32 = Data.Word.Word32
-type Int64 = Data.Int.Int64
+import Types
+
+table :: [Int]
+table = [0..63]
 
 {-
   A 16 byte buffer divided into 4 (32 bit) registers is used to compute
@@ -88,7 +92,6 @@ hash inputData = do
     }
 
     -- Each 512 bit block is split into 16 words (each being 32-bit)
-
 
     blocks
 

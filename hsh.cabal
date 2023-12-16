@@ -36,9 +36,14 @@ common warnings
 executable hsh
     import:           warnings
     main-is:          Main.hs
-    other-modules:
-      Md5
-      Sha1
-    build-depends:    base ^>=4.17.0.0, bytestring, binary
+    other-modules:    Md5
+                      Sha1
+                      Template
+                      Types
+    build-depends:    base ^>=4.17.0.0,
+                      bytestring,
+                      binary,
+                      template-haskell,
+                      process
     hs-source-dirs:   src
     default-language: GHC2021

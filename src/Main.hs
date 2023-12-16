@@ -2,6 +2,7 @@ module Main (main) where
 
 import Md5
 import Sha1
+import Template
 
 import qualified System.IO as IO
 import qualified System.Exit
@@ -11,8 +12,8 @@ import System.Console.GetOpt
 import Data.Foldable (for_)
 import Control.Monad (when)
 
-programVersion :: String
-programVersion = "0.1.0"
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax
 
 -- https://wiki.haskell.org/High-level_option_handling_with_GetOpt
 -- Dictionary of CLI options
@@ -22,7 +23,6 @@ programVersion = "0.1.0"
 data Flags = Flags {
     help :: Bool,
     version :: Bool,
-    debug :: Bool,
     algorithm :: String
 } deriving Show
 
@@ -30,7 +30,6 @@ defaultOptions :: Flags
 defaultOptions =  Flags {
     help = False,
     version = False,
-    debug = False,
     algorithm = "md5"
 }
 
@@ -46,7 +45,7 @@ options :: [OptDescr (Flags -> IO Flags)]
 options = [
         Option ['V'] ["version"] (NoArg (\_ -> do
             prg <- System.Environment.getProgName
-            IO.putStrLn $ prg ++ " " ++ programVersion
+            IO.putStrLn $ prg ++ " " ++ Template.getVersion
             System.Exit.exitSuccess
         )) "Show version",
 
@@ -55,10 +54,6 @@ options = [
             IO.hPutStrLn IO.stderr $ usageInfo ("usage: "++prg) options
             System.Exit.exitSuccess
         )) "Print help information",
-
-        Option ['d'] ["debug"] (NoArg (\opt ->
-            return opt { debug = True }
-        )) "Print debug output",
 
         Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
             -- Note that `ReqArg` has two arguments for its function
@@ -72,21 +67,18 @@ options = [
 main :: IO ()
 main = do
     args <- System.Environment.getArgs
-    -- `actions` will hold the (Flags -> IO Flags) functions defined for each flag
-    let (actions, _, errors) = getOpt RequireOrder options args
+    -- `optionsFn` will hold the (Flags -> IO Flags) functions defined for each option
+    let (optionsFn, _, errors) = getOpt RequireOrder options args
 
-    -- Print command line parsing errors and exit if any occured
+    -- Check for command line parsing errors
     when ((length errors) > 0) $ do
         for_ errors IO.putStr
         System.Exit.exitFailure
 
-    -- With `foldl`, we apply the bind operator to each function in `actions`
-    opts <- foldl (>>=) (return defaultOptions) actions
+    -- Apply default options
+    opts <- foldl (>>=) (return defaultOptions) optionsFn
 
-    -- Access to fields: 'object.field' -> 'field object'
-    when (debug opts) $ putStrLn $ show opts
-
-    -- Reads from stdin (does not wait when no input is given)
+    -- Read from stdin
     input <- LazyByteString.getContents
 
     case (algorithm opts) of
