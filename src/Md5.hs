@@ -2,8 +2,6 @@ module Md5 (hash) where
 
 import qualified Data.ByteString.Lazy as ByteStringLazy
 import qualified Data.Binary as Binary
-import qualified Data.Word (Word32)
-import qualified Data.Int (Int64)
 
 import Data.Bits ((.&.), (.|.), complement, xor)  -- '&', '|' etc.
 import Types
@@ -20,9 +18,10 @@ data Digest = Digest {
   d :: Word32
 }
 
-{-| (1) PADDING BITS
-    Append a '1' bit and fill with '0' until the bit-length of the
-    input adheres to:
+{-
+  (1) PADDING BITS
+  Append a '1' bit and fill with '0' until the bit-length of the
+  input adheres to:
         input % 512 == 448 ~
         input % 64  == 56
 
@@ -30,32 +29,33 @@ data Digest = Digest {
   Padding should be performed even if the input length already has 448
   as the remainder mod 512.
 -}
-padBlock :: [Byte] -> [Byte]
+padBlock :: [Word8] -> [Word8]
 padBlock bytes = if (mod (length bytes) (div 512 8) /= (div 448 8))
                  then padBlock $ bytes ++ [0x0]
                  else bytes
 
 
-{- (2) APPEND LENGTH
+{- 
+  (2) APPEND LENGTH
   Append the 64 bit representation of the original length of the message
 -}
-appendLength :: [Byte] -> Int64 -> [Byte]
+appendLength :: [Word8] -> Int64 -> [Word8]
 appendLength bytes len = bytes ++ (ByteStringLazy.unpack $ Binary.encode len)
 
 
 -- Auxillary functions --
 -- Each of the auxillary functions are defined to act over bits
 -- in each word and map 3 words onto 1.
-f :: Byte -> Byte -> Byte -> Byte
+f :: Word8 -> Word8 -> Word8 -> Word8
 f x y z = (x .&. y) .|. ((complement x) .&. z)
 
-g :: Byte -> Byte -> Byte -> Byte
+g :: Word8 -> Word8 -> Word8 -> Word8
 g x y z = (x .&. z) .|. (y .&. (complement z))
 
-h :: Byte -> Byte -> Byte -> Byte
+h :: Word8 -> Word8 -> Word8 -> Word8
 h x y z = xor (xor x y) z
 
-i :: Byte -> Byte -> Byte -> Byte
+i :: Word8 -> Word8 -> Word8 -> Word8
 i x y z = xor y $ x .&. (complement z)
 
 {-
@@ -64,10 +64,11 @@ i x y z = xor y $ x .&. (complement z)
   Hash algorithms map a variable length bit-string onto a fixed length
   bit-string, 128 bits (16 bytes) in the case of MD5.
 -}
-hash :: ByteStringLazy.ByteString -> [Byte]
+hash :: [Char] -> [Word8]
 hash inputData = do
-    let bytes = ByteStringLazy.unpack inputData
-    let original_len = fromIntegral(length bytes) :: Int64
+    let byteString :: ByteStringLazy.ByteString = Binary.encode inputData
+    let bytes :: [Word8] = ByteStringLazy.unpack byteString
+    let originalLength :: Int64 = fromIntegral $ length bytes
 
     -- Append 1 bit to the input
     let padded = padBlock $ bytes ++ [0b1000_0000]
@@ -75,7 +76,7 @@ hash inputData = do
     -- Append Int64 representation of the original length
     -- The resulting array will be evenly divisible into blocks
     -- of 512 bits (64 bytes)
-    let blocks = appendLength padded original_len
+    let blocks = appendLength padded originalLength
 
     let digest = Digest {
         a = 0x0123_4567,
@@ -85,7 +86,6 @@ hash inputData = do
     }
 
     -- Each 512 bit block is split into 16 words (each being 32-bit)
-
     blocks
 
 

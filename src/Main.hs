@@ -9,7 +9,6 @@ import Template
 import qualified System.IO as IO
 import qualified System.Exit
 import qualified System.Environment
-import qualified Data.ByteString.Lazy as LazyByteString
 import System.Console.GetOpt
 import Data.Foldable (for_)
 import Control.Monad (when)
@@ -27,6 +26,11 @@ defaultOptions =  Flags {
     algorithm = "md5"
 }
 
+usage :: IO ()
+usage = do
+    programName <- System.Environment.getProgName
+    IO.hPutStrLn IO.stderr $ usageInfo ("usage: " ++ programName) options
+
 -- OptDescr is a type that holds
 -- Option {
 --  [Char]        Short options
@@ -38,23 +42,20 @@ defaultOptions =  Flags {
 options :: [OptDescr (Flags -> IO Flags)]
 options = [
         Option ['V'] ["version"] (NoArg (\_ -> do
-            prg <- System.Environment.getProgName
-            IO.putStrLn $ prg ++ " " ++ $(Template.programVersion)
-            System.Exit.exitSuccess
+            programName <- System.Environment.getProgName
+            IO.putStrLn $ programName ++ " " ++ $(Template.programVersion)
+            System.Exit.exitFailure
         )) "Show version",
 
         Option ['h'] ["help"] (NoArg (\_ -> do
-            prg <- System.Environment.getProgName
-            IO.hPutStrLn IO.stderr $ usageInfo ("usage: "++prg) options
-            System.Exit.exitSuccess
+            usage
+            System.Exit.exitFailure
         )) "Print help information",
 
         Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
-            -- Note that `ReqArg` has two arguments for its function
-            -- `read` will perform string->int conversion
-            return opt { algorithm = read arg }
-        ) "ALG")
-        "Select algorithm (md5,sha1)"
+            return opt { algorithm = arg }
+        ) "algorithm")
+        "Select algorithm [md5,sha1]"
     ]
 
 
@@ -73,12 +74,12 @@ main = do
     opts <- foldl (>>=) (return defaultOptions) optionsFn
 
     -- Read from stdin
-    input <- LazyByteString.getContents
+    input <- Prelude.getContents
 
     case (algorithm opts) of
         "md5"  -> IO.putStrLn $ show $ Md5.hash input
         "sha1" -> IO.putStrLn $ show $ Sha1.hash input
-        _ -> IO.putStrLn "invalid algorithm"
+        alg    -> IO.putStrLn $ "Invalid algorithm: " ++ alg
 
     System.Exit.exitSuccess
 
