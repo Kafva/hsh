@@ -9,7 +9,6 @@ import Types
 {-
     A 16 byte buffer divided into 4 (32 bit) registers is used to compute
     the digest (a b c d).
-    Word ~ Unsigned
 -}
 data Digest = Digest {
     a :: Word32,
@@ -36,10 +35,10 @@ padBlock bytes = if (mod (length bytes) (div 512 8) /= (div 448 8))
 
 
 {-
-  (2) APPEND LENGTH
-  Append the 64 bit representation of the original length of the message
+    (2) APPEND LENGTH
+    Append the 64 bit representation of the original length of the message
 -}
-appendLength :: [Word8] -> Int64 -> [Word8]
+appendLength :: [Word8] -> Word64 -> [Word8]
 appendLength bytes len = bytes ++ (ByteStringLazy.unpack $ Binary.encode len)
 
 
@@ -69,12 +68,12 @@ hash :: [Char] -> [Word8]
 hash inputData = do
     let byteString :: ByteStringLazy.ByteString = Binary.encode inputData
     let bytes :: [Word8] = ByteStringLazy.unpack byteString
-    let originalLength :: Int64 = fromIntegral $ length bytes
+    let originalLength :: Word64 = fromIntegral $ length bytes
 
     -- Append 1 bit to the input
     let padded = padBlock $ bytes ++ [0b1000_0000]
 
-    -- Append Int64 representation of the original length
+    -- Append 64 bit representation of the original length
     -- The resulting array will be evenly divisible into blocks
     -- of 512 bits (64 bytes)
     let blocks = appendLength padded originalLength
@@ -88,5 +87,4 @@ hash inputData = do
 
     -- Each 512 bit block is split into 16 words (each being 32-bit)
     blocks
-
 
