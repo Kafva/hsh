@@ -5,15 +5,8 @@ import qualified Data.Binary as Binary
 import qualified Data.Word (Word32)
 import qualified Data.Int (Int64)
 
-import Language.Haskell.TH
-import Language.Haskell.TH.Syntax
-
 import Data.Bits ((.&.), (.|.), complement, xor)  -- '&', '|' etc.
-
 import Types
-
-table :: [Int]
-table = [0..63]
 
 {-
   A 16 byte buffer divided into 4 (32 bit) registers is used to compute

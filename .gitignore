@@ -1,6 +1,7 @@
 # vi: ft=gitignore
 
 /hsh
+/md5
 
 
 # Haskell

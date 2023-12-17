@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Main (main) where
 
 import Md5
@@ -12,14 +14,6 @@ import System.Console.GetOpt
 import Data.Foldable (for_)
 import Control.Monad (when)
 
-import Language.Haskell.TH
-import Language.Haskell.TH.Syntax
-
--- https://wiki.haskell.org/High-level_option_handling_with_GetOpt
--- Dictionary of CLI options
--- Note the use of 'deriving Show' to allow for the data to be
--- easily shown to stdout.
---
 data Flags = Flags {
     help :: Bool,
     version :: Bool,
@@ -35,17 +29,17 @@ defaultOptions =  Flags {
 
 -- OptDescr is a type that holds
 -- Option {
---  [Char]                   Short options
---  [String]                 Long options
---  (ArgDescr a)             Descriptor (a Flags -> IO Flags function in our case)
---  String                   Help text
+--  [Char]        Short options
+--  [String]      Long options
+--  (ArgDescr a)  Descriptor (a Flags -> IO Flags function in our case)
+--  String        Help text
 -- }
--- By mapping to an `IO` function we can print stuff directly in the handler.
+-- By mapping to an `IO` function we can print directly in the handler.
 options :: [OptDescr (Flags -> IO Flags)]
 options = [
         Option ['V'] ["version"] (NoArg (\_ -> do
             prg <- System.Environment.getProgName
-            IO.putStrLn $ prg ++ " " ++ Template.getVersion
+            IO.putStrLn $ prg ++ " " ++ $(Template.programVersion)
             System.Exit.exitSuccess
         )) "Show version",
 

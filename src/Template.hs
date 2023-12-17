@@ -1,18 +1,24 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-
+    Compile time executed functions
+-}
+module Template (programVersion, md5Table) where
 
-module Template (getVersion) where
-
-import System.Process
+import qualified System.Process
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-getVersion = "0.1.0"
--- getVersion :: String -> Q Exp
--- getVersion = do
---   output <- runIO $ readProcess "awk" ["'/^version: /{print $2}'", "hsh.cabal"] []
---   liftData output
+-- Extract version string from cabal manifest
+programVersion :: Q Exp
+programVersion = do
+  output <- runIO $ System.Process.readProcess
+                    "awk" ["/^version: /{printf $2}", "hsh.cabal"] ""
+  liftData output
 
-
--- md5table :: [Byte]
--- md5table =  map (\i -> floor $ (2**32 * (abs $ sin $ i+1)))  [0..63]
-
+-- Generate the lookup table used for MD5 digest calculations
+md5Table :: Q Exp
+md5Table = do
+    lift (
+        map (\i ->
+            floor . (*2**32) . abs . sin $ (i :: Double) + 1
+        )
+        [0..63] :: [Int])
