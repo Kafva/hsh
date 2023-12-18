@@ -12,6 +12,7 @@ import qualified System.Environment
 import System.Console.GetOpt
 import Data.Foldable (for_)
 import Control.Monad (when)
+import Text.Printf (printf)
 
 data Flags = Flags {
     help :: Bool,
@@ -77,9 +78,18 @@ main = do
     input <- Prelude.getContents
 
     case (algorithm opts) of
-        "md5"  -> IO.putStrLn $ show $ Md5.hash input
-        "sha1" -> IO.putStrLn $ show $ Sha1.hash input
-        alg    -> IO.putStrLn $ "Invalid algorithm: " ++ alg
+        "md5"  -> do
+            let digest = Md5.hash input
+            IO.putStrLn $ printf "input length: %d bit(s)" (8*length input)
+            IO.putStrLn $ printf "digest length: %d bit(s)" (8*length digest)
+            IO.putStrLn $ show $ digest
+
+
+        "sha1" -> do
+            IO.putStrLn $ show $ Sha1.hash input
+
+        alg -> 
+            IO.putStrLn $ "Invalid algorithm: " ++ alg
 
     System.Exit.exitSuccess
 
