@@ -5,7 +5,7 @@ module Main (main) where
 import Md5
 import Sha1
 import Template
-import Log
+import qualified Log
 
 import qualified System.IO as IO
 import qualified System.Exit
@@ -17,6 +17,7 @@ import Control.Monad (when)
 data Flags = Flags {
     help :: Bool,
     version :: Bool,
+    debug :: Bool,
     algorithm :: String
 } deriving Show
 
@@ -24,6 +25,7 @@ defaultOptions :: Flags
 defaultOptions =  Flags {
     help = False,
     version = False,
+    debug = False,
     algorithm = "md5"
 }
 
@@ -31,6 +33,9 @@ usage :: IO ()
 usage = do
     programName <- System.Environment.getProgName
     IO.hPutStrLn IO.stderr $ usageInfo ("usage: " ++ programName) options
+
+-- TODO Use a Reader for the config...
+--  https://stackoverflow.com/a/14179721/9033629
 
 -- OptDescr is a type that holds
 -- Option {
@@ -47,6 +52,10 @@ options = [
             IO.putStrLn $ programName ++ " " ++ $(Template.programVersion)
             System.Exit.exitFailure
         )) "Show version",
+
+        Option ['d'] ["debug"] (NoArg (\opt -> do
+            return opt { debug = True }
+        )) "Verbose logging",
 
         Option ['h'] ["help"] (NoArg (\_ -> do
             usage
