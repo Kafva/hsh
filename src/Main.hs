@@ -5,6 +5,7 @@ module Main (main) where
 import Md5
 import Sha1
 import Template
+import Log
 
 import qualified System.IO as IO
 import qualified System.Exit
@@ -12,7 +13,6 @@ import qualified System.Environment
 import System.Console.GetOpt
 import Data.Foldable (for_)
 import Control.Monad (when)
-import Text.Printf (printf)
 
 data Flags = Flags {
     help :: Bool,
@@ -80,9 +80,8 @@ main = do
     case (algorithm opts) of
         "md5"  -> do
             let digest = Md5.hash input
-            IO.putStrLn $ printf "input length: %d bit(s)" (8*length input)
-            IO.putStrLn $ printf "digest length: %d bit(s)" (8*length digest)
-            IO.putStrLn $ show $ digest
+            Log.debug2 "input length bit(s):" (8*length input)
+            Log.debug2 "digest length bit(s):" (8*length digest)
 
 
         "sha1" -> do

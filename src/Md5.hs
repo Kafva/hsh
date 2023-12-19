@@ -5,9 +5,7 @@ import qualified Data.Binary as Binary
 
 import Data.Bits ((.&.), (.|.), complement, xor)  -- '&', '|' etc.
 import Types
-
-import Debug.Trace (trace)
-import Text.Printf (printf)
+import qualified Log
 
 {-
     A 16 byte buffer divided into 4 (32 bit) registers is used to compute
@@ -66,8 +64,9 @@ hash inputData = do
     -- Append the 64 bit representation of the original length (in bits)
     let originalLen :: [Word8] = ByteStringLazy.unpack $ Binary.encode 
                                                        $ 8 * (length bytes)
-    let blocks = padded ++ originalLen
-    _ <- trace (show originalLen) originalLen
+    _ <- Log.debug "xd" $ show originalLen
+
+    let blocks = (padded ++ originalLen)
 
     -- Set starting values
     let digest = Digest {

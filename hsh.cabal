@@ -40,6 +40,7 @@ executable hsh
                       Sha1
                       Template
                       Types
+                      Log
     build-depends:    base ^>=4.17.0.0,
                       bytestring,
                       binary,
