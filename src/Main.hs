@@ -80,14 +80,14 @@ main = do
     case (algorithm opts) of
         "md5"  -> do
             let digest = Md5.hash input
-            Log.debug2 "input length bit(s):" (8*length input)
-            Log.debug2 "digest length bit(s):" (8*length digest)
+            Log.debugMain "input length %d bit(s)" (8*length input)
+            Log.debugMain "digest length %d bit(s)" (8*length digest)
 
 
         "sha1" -> do
             IO.putStrLn $ show $ Sha1.hash input
 
-        alg -> 
+        alg ->
             IO.putStrLn $ "Invalid algorithm: " ++ alg
 
     System.Exit.exitSuccess
