@@ -89,8 +89,8 @@ main = do
     case (algorithm opts) of
         "md5"  -> do
             let digest = Md5.hash input
-            Log.debugMain "input length %d bit(s)" (8*length input)
-            Log.debugMain "digest length %d bit(s)" (8*length digest)
+            Log.debug' "input length %d bit(s)" (8*length input)
+            Log.debug' "digest length %d bit(s)" (8*length digest)
 
 
         "sha1" -> do

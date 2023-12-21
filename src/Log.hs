@@ -1,4 +1,4 @@
-module Log (debug, debugMain, info, infoMain, err, errMain) where
+module Log (debug, debug', info, info', err, err') where
 
 import Debug.Trace (trace)
 import Text.Printf (printf,PrintfArg)
@@ -16,18 +16,18 @@ errPrintf fmt args = printf ("\x1b[31mERROR\x1b[0m: " ++ fmt) args
 debug :: String -> PrintfArg a => a -> a
 debug fmt args = trace (debugPrintf fmt args) args
 
-debugMain :: String -> PrintfArg a => a -> IO()
-debugMain fmt args = IO.putStrLn $ debugPrintf fmt args
+debug' :: String -> PrintfArg a => a -> IO()
+debug' fmt args = IO.putStrLn $ debugPrintf fmt args
 
 info :: String -> PrintfArg a => a -> a
 info fmt args = trace (infoPrintf fmt args) args
 
-infoMain :: String -> PrintfArg a => a -> IO()
-infoMain fmt args = IO.putStrLn $ infoPrintf fmt args
+info' :: String -> PrintfArg a => a -> IO()
+info' fmt args = IO.putStrLn $ infoPrintf fmt args
 
 err :: String -> PrintfArg a => a -> a
 err fmt args = trace (errPrintf fmt args) args
 
-errMain :: String -> PrintfArg a => a -> IO()
-errMain fmt args = IO.putStrLn $ errPrintf fmt args
+err' :: String -> PrintfArg a => a -> IO()
+err' fmt args = IO.putStrLn $ errPrintf fmt args
 
