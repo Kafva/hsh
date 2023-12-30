@@ -5,6 +5,7 @@ module Main (main) where
 import Md5
 import Sha1
 import Template
+import Types (Config)
 import qualified Log
 
 import System.IO (hPutStrLn, stderr)
@@ -13,16 +14,11 @@ import System.Console.GetOpt
 import Data.Foldable (for_)
 import Control.Monad (when)
 import System.Exit (exitFailure, exitSuccess)
+import Control.Monad.Reader
 
-data Flags = Flags {
-    help :: Bool,
-    version :: Bool,
-    debug :: Bool,
-    algorithm :: String
-} deriving Show
 
-defaultOptions :: Flags
-defaultOptions =  Flags {
+defaultOptions :: Config
+defaultOptions = Config {
     help = False,
     version = False,
     debug = False,
@@ -41,11 +37,11 @@ usage = do
 -- Option {
 --  [Char]        Short options
 --  [String]      Long options
---  (ArgDescr a)  Descriptor (a Flags -> IO Flags function in our case)
+--  (ArgDescr a)  Descriptor (a Config -> IO Config function in our case)
 --  String        Help text
 -- }
 -- By mapping to an `IO` function we can print directly in the handler.
-options :: [OptDescr (Flags -> IO Flags)]
+options :: [OptDescr (Config -> IO Config)]
 options = [
         Option ['V'] ["version"] (NoArg (\_ -> do
             programName <- getProgName
@@ -72,7 +68,7 @@ options = [
 main :: IO ()
 main = do
     args <- getArgs
-    -- `optionsFn` will hold the (Flags -> IO Flags) functions defined for each option
+    -- `optionsFn` will hold the (Config -> IO Config) functions defined for each option
     let (optionsFn, _, errors) = getOpt RequireOrder options args
 
     -- Check for command line parsing errors
@@ -88,7 +84,7 @@ main = do
 
     case (algorithm opts) of
         "md5"  -> do
-            let digest = Md5.hash input
+            let digest = runReader (Md5.hash input) opts
             Log.debug' "input length %d bit(s)" (8*length input)
             Log.debug' "digest length %d bit(s)" (8*length digest)
 

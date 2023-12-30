@@ -5,6 +5,7 @@ import qualified Data.Binary as Binary
 
 import Data.Bits ((.&.), (.|.), complement, xor)  -- '&', '|' etc.
 import Types
+import Control.Monad.Reader
 import qualified Log
 
 {-
@@ -64,6 +65,8 @@ hash inputData = do
     -- Append the 64 bit representation of the original length (in bits)
     let originalLen :: [Word8] = ByteStringLazy.unpack $ Binary.encode
                                                        $ 8 * (length bytes)
+    -- flags <- ask
+    -- _ <- Log.debug "debug: " $ show (debug flags)
     _ <- Log.debug "originalLen: %s" $ show originalLen
 
     let blocks = (padded ++ originalLen)
