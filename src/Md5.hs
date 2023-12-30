@@ -5,8 +5,6 @@ import qualified Data.Binary as Binary
 
 import Data.Bits ((.&.), (.|.), complement, xor)  -- '&', '|' etc.
 import Types
-import qualified Log
-import Debug.Trace
 
 {-
     A 16 byte buffer divided into 4 (32 bit) registers is used to compute

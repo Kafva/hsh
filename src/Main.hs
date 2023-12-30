@@ -75,6 +75,7 @@ main = do
 
     -- Apply default options
     opts <- foldl (>>=) (return defaultOptions) optionsFn
+    Log.info' "%s\n" $ show opts
 
     -- Read from stdin
     -- input <- Prelude.getContents
@@ -83,14 +84,14 @@ main = do
     case algorithm opts of
         "md5"  -> do
             let digest = Md5.hash input
-            Log.debug' "input length %d bit(s)" (8*length input)
-            Log.debug' "digest length %d bit(s)" (8*length digest)
+            runReaderT (Log.debug' "input length %d bit(s)" (8*length input)) opts
+            runReaderT (Log.debug' "digest length %d bit(s)" (8*length digest)) opts
 
         "sha1" -> do
             print $ Sha1.hash input
 
         alg ->
-            putStrLn $ "Invalid algorithm: " ++ alg
+            Log.err' "Invalid algorithm: %s" alg
 
     exitSuccess
 
