@@ -12,7 +12,6 @@ import System.IO (hPutStrLn, stderr)
 import System.Environment (getProgName, getArgs)
 import System.Console.GetOpt
 import Data.Foldable (for_)
-import Control.Monad (when)
 import System.Exit (exitFailure, exitSuccess)
 import Control.Monad.Reader
 
@@ -29,9 +28,6 @@ usage :: IO ()
 usage = do
     programName <- getProgName
     hPutStrLn stderr $ usageInfo ("usage: " ++ programName) options
-
--- TODO Use a Reader for the config...
---  https://stackoverflow.com/a/14179721/9033629
 
 -- OptDescr is a type that holds
 -- Option {
@@ -86,7 +82,7 @@ main = do
 
     case algorithm opts of
         "md5"  -> do
-            let digest = runReader (Md5.hash input) opts
+            let digest = Md5.hash input
             Log.debug' "input length %d bit(s)" (8*length input)
             Log.debug' "digest length %d bit(s)" (8*length digest)
 
