@@ -64,11 +64,6 @@ options = [
         "Select algorithm [md5,sha1]"
     ]
 
-readme :: Reader Config String
-readme = do
-    x <- ask
-    return (algorithm x)
-
 main :: IO ()
 main = do
     args <- getArgs
@@ -87,21 +82,19 @@ main = do
 
     -- Read from stdin
     -- input <- Prelude.getContents
+    let input = ['a', 'b', 'c']
 
-    let xd = runReader readme opts
-    print xd
+    case algorithm opts of
+        "md5"  -> do
+            let digest = runReader (Md5.hash input) opts
+            Log.debug' "input length %d bit(s)" (8*length input)
+            Log.debug' "digest length %d bit(s)" (8*length digest)
 
-    -- case algorithm opts of
-    --     "md5"  -> do
-    --         let digest = Md5.hash input
-    --         Log.debug' "input length %d bit(s)" (8*length input)
-    --         Log.debug' "digest length %d bit(s)" (8*length digest)
+        "sha1" -> do
+            print $ Sha1.hash input
 
-    --     "sha1" -> do
-    --         print $ Sha1.hash input
-
-    --     alg ->
-    --         putStrLn $ "Invalid algorithm: " ++ alg
+        alg ->
+            putStrLn $ "Invalid algorithm: " ++ alg
 
     exitSuccess
 

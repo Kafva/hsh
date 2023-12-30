@@ -7,6 +7,7 @@ import Data.Bits ((.&.), (.|.), complement, xor)  -- '&', '|' etc.
 import Types
 import Control.Monad.Reader
 import qualified Log
+import Debug.Trace
 
 {-
     A 16 byte buffer divided into 4 (32 bit) registers is used to compute
@@ -48,8 +49,9 @@ i x y z = xor y $ x .&. (complement z)
     Hash algorithms map a variable length bit-string onto a fixed length
     bit-string, 128 bits (16 bytes) in the case of MD5.
 -}
-hash :: [Char] -> [Word8]
+hash :: [Char] -> Reader Config [Word8]
 hash inputData = do
+    config <- ask
     let byteString :: ByteStringLazy.ByteString = Binary.encode inputData
     let bytes :: [Word8] = ByteStringLazy.unpack byteString
 
@@ -66,11 +68,8 @@ hash inputData = do
     -- Append the 64 bit representation of the original length (in bits)
     let originalLen :: [Word8] = ByteStringLazy.unpack $ Binary.encode
                                                        $ 8 * length bytes
-    -- flags <- ask
-    -- _ <- Log.debug "debug: " $ show (debug flags)
-    _ <- Log.debug "originalLen: %s" $ show originalLen
 
-    let blocks = padded ++ originalLen
+    let blocks = trace (Log.debugPrintf "originalLen: %s" $ show originalLen) $ padded ++ originalLen
 
     -- Set starting values
     let digest = Digest {
@@ -81,5 +80,5 @@ hash inputData = do
     }
 
     -- Each 512 bit block is split into 16 words (each being 32-bit)
-    blocks
+    return blocks
 
