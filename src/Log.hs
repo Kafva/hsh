@@ -5,13 +5,13 @@ import Text.Printf (printf,PrintfArg)
 import qualified System.IO as IO
 
 debugPrintf :: String -> PrintfArg a => a -> String
-debugPrintf fmt args = printf ("\x1b[34mDEBUG\x1b[0m: " ++ fmt) args
+debugPrintf fmt = printf ("\x1b[34mDEBUG\x1b[0m: " ++ fmt)
 
 infoPrintf :: String -> PrintfArg a => a -> String
-infoPrintf fmt args = printf ("\x1b[32mINFO\x1b[0m: " ++ fmt) args
+infoPrintf fmt = printf ("\x1b[32mINFO\x1b[0m: " ++ fmt)
 
 errPrintf :: String -> PrintfArg a => a -> String
-errPrintf fmt args = printf ("\x1b[31mERROR\x1b[0m: " ++ fmt) args
+errPrintf fmt = printf ("\x1b[31mERROR\x1b[0m: " ++ fmt)
 
 debug :: String -> PrintfArg a => a -> a
 debug fmt args = trace (debugPrintf fmt args) args

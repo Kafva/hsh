@@ -1,8 +1,10 @@
+{-# LANGUAGE StrictData #-}
+
 module Types (
     Word8,
     Word32,
     Word64,
-    Config
+    Config(..) -- constructor
 ) where
 
 import qualified Data.Binary as Binary

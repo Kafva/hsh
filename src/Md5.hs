@@ -21,10 +21,11 @@ data Digest = Digest {
 
 padBlock :: [Word8] -> [Word8]
 padBlock bytes = do
-    let bitsLen = 8 * (length bytes)
-    if (mod bitsLen 512 /= 448)
+    let bitsLen = 8 * length bytes
+    if mod bitsLen 512 /= 448
     then padBlock $ bytes ++ [0x0]
     else bytes
+
 {-
     Each of the auxillary functions are defined to act over bits
     in each word and map 3 words onto 1.
@@ -64,12 +65,12 @@ hash inputData = do
     -- (2) APPEND LENGTH
     -- Append the 64 bit representation of the original length (in bits)
     let originalLen :: [Word8] = ByteStringLazy.unpack $ Binary.encode
-                                                       $ 8 * (length bytes)
+                                                       $ 8 * length bytes
     -- flags <- ask
     -- _ <- Log.debug "debug: " $ show (debug flags)
     _ <- Log.debug "originalLen: %s" $ show originalLen
 
-    let blocks = (padded ++ originalLen)
+    let blocks = padded ++ originalLen
 
     -- Set starting values
     let digest = Digest {

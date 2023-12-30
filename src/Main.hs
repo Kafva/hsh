@@ -5,7 +5,7 @@ module Main (main) where
 import Md5
 import Sha1
 import Template
-import Types (Config)
+import Types (Config(..))
 import qualified Log
 
 import System.IO (hPutStrLn, stderr)
@@ -64,6 +64,10 @@ options = [
         "Select algorithm [md5,sha1]"
     ]
 
+readme :: Reader Config String
+readme = do
+    x <- ask
+    return (algorithm x)
 
 main :: IO ()
 main = do
@@ -72,6 +76,8 @@ main = do
     let (optionsFn, _, errors) = getOpt RequireOrder options args
 
     -- Check for command line parsing errors
+    {- HLINT ignore "Redundant bracket" -}
+    {- HLINT ignore "Use null" -}
     when ((length errors) > 0) $ do
         for_ errors putStr
         exitFailure
@@ -80,20 +86,22 @@ main = do
     opts <- foldl (>>=) (return defaultOptions) optionsFn
 
     -- Read from stdin
-    input <- Prelude.getContents
+    -- input <- Prelude.getContents
 
-    case (algorithm opts) of
-        "md5"  -> do
-            let digest = runReader (Md5.hash input) opts
-            Log.debug' "input length %d bit(s)" (8*length input)
-            Log.debug' "digest length %d bit(s)" (8*length digest)
+    let xd = runReader readme opts
+    print xd
 
+    -- case algorithm opts of
+    --     "md5"  -> do
+    --         let digest = Md5.hash input
+    --         Log.debug' "input length %d bit(s)" (8*length input)
+    --         Log.debug' "digest length %d bit(s)" (8*length digest)
 
-        "sha1" -> do
-            putStrLn $ show $ Sha1.hash input
+    --     "sha1" -> do
+    --         print $ Sha1.hash input
 
-        alg ->
-            putStrLn $ "Invalid algorithm: " ++ alg
+    --     alg ->
+    --         putStrLn $ "Invalid algorithm: " ++ alg
 
     exitSuccess
 
