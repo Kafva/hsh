@@ -7,12 +7,12 @@ import Sha1
 import Template
 import qualified Log
 
-import qualified System.IO as IO
-import qualified System.Exit
-import qualified System.Environment
+import System.IO (hPutStrLn, stderr)
+import System.Environment (getProgName, getArgs)
 import System.Console.GetOpt
 import Data.Foldable (for_)
 import Control.Monad (when)
+import System.Exit (exitFailure, exitSuccess)
 
 data Flags = Flags {
     help :: Bool,
@@ -31,8 +31,8 @@ defaultOptions =  Flags {
 
 usage :: IO ()
 usage = do
-    programName <- System.Environment.getProgName
-    IO.hPutStrLn IO.stderr $ usageInfo ("usage: " ++ programName) options
+    programName <- getProgName
+    hPutStrLn stderr $ usageInfo ("usage: " ++ programName) options
 
 -- TODO Use a Reader for the config...
 --  https://stackoverflow.com/a/14179721/9033629
@@ -48,9 +48,9 @@ usage = do
 options :: [OptDescr (Flags -> IO Flags)]
 options = [
         Option ['V'] ["version"] (NoArg (\_ -> do
-            programName <- System.Environment.getProgName
-            IO.putStrLn $ programName ++ " " ++ $(Template.programVersion)
-            System.Exit.exitFailure
+            programName <- getProgName
+            putStrLn $ programName ++ " " ++ $(Template.programVersion)
+            exitFailure
         )) "Show version",
 
         Option ['d'] ["debug"] (NoArg (\opt -> do
@@ -59,7 +59,7 @@ options = [
 
         Option ['h'] ["help"] (NoArg (\_ -> do
             usage
-            System.Exit.exitFailure
+            exitFailure
         )) "Print help information",
 
         Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
@@ -71,14 +71,14 @@ options = [
 
 main :: IO ()
 main = do
-    args <- System.Environment.getArgs
+    args <- getArgs
     -- `optionsFn` will hold the (Flags -> IO Flags) functions defined for each option
     let (optionsFn, _, errors) = getOpt RequireOrder options args
 
     -- Check for command line parsing errors
     when ((length errors) > 0) $ do
-        for_ errors IO.putStr
-        System.Exit.exitFailure
+        for_ errors putStr
+        exitFailure
 
     -- Apply default options
     opts <- foldl (>>=) (return defaultOptions) optionsFn
@@ -94,10 +94,10 @@ main = do
 
 
         "sha1" -> do
-            IO.putStrLn $ show $ Sha1.hash input
+            putStrLn $ show $ Sha1.hash input
 
         alg ->
-            IO.putStrLn $ "Invalid algorithm: " ++ alg
+            putStrLn $ "Invalid algorithm: " ++ alg
 
-    System.Exit.exitSuccess
+    exitSuccess
 
