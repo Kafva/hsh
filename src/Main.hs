@@ -14,6 +14,7 @@ import System.Console.GetOpt
 import Data.Foldable (for_)
 import System.Exit (exitFailure, exitSuccess)
 import Control.Monad.Reader
+import Numeric (showHex)
 
 
 defaultOptions :: Config
@@ -60,6 +61,9 @@ options = [
         "Select algorithm [md5,sha1]"
     ]
 
+-- charToHexString :: Char8 -> String
+-- charToHexString c = showHex (fromEnum c) ""
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -78,12 +82,14 @@ main = do
     Log.info' "%s\n" $ show opts
 
     -- Read from stdin
-    -- input <- Prelude.getContents
-    let input = ['a', 'b', 'c']
+    input <- Prelude.getContents
+    -- let input = ['a', 'b', 'c']
 
     case algorithm opts of
         "md5"  -> do
             let digest = Md5.hash input
+            print $ showHex (head digest) ""
+
             runReaderT (Log.debug' "input length %d bit(s)" (8*length input)) opts
             runReaderT (Log.debug' "digest length %d bit(s)" (8*length digest)) opts
 
