@@ -3,14 +3,14 @@ module Md5 (hash) where
 import qualified Data.ByteString.Lazy as ByteStringLazy
 import qualified Data.Binary as Binary
 
-import Data.Bits ((.&.), (.|.), complement, xor)  -- '&', '|' etc.
+import Data.Bits ((.&.), (.|.), complement, xor, shiftL)
 import Types
 
 {-
     A 16 byte buffer divided into 4 (32 bit) registers is used to compute
     the digest (a b c d).
 -}
-data Digest = Digest {
+data Block = Block {
     a :: Word32,
     b :: Word32,
     c :: Word32,
@@ -40,6 +40,30 @@ h x y z = xor (xor x y) z
 i :: Word8 -> Word8 -> Word8 -> Word8
 i x y z = xor y $ x .&. (complement z)
 
+
+combineToWord32 :: [Word8] -> Word32
+combineToWord32 bytes =
+    if length bytes /= 4
+    then 0
+    else shiftL $ fromIntegral (bytes!!0) 24 .|.
+         shiftL $ fromIntegral (bytes!!1) 16 .|.
+         shiftL $ fromIntegral (bytes!!2) 8 .|.
+         fromIntegral bytes!!3
+
+-- Split the given array of bytes into a list of 32 byte entries
+-- Returns an empty list if the list is not evenly divisable
+splitWord32 :: [Word8] -> [Word32]
+splitWord32 [] = []
+splitWord32 arr = do
+    if mod (length arr) 4 /= 0
+    then []
+    else combineToWord32 (take 4 arr) : splitWord32 (drop 4 arr)
+
+
+splitBlocks :: [Word8] -> [Block]
+splitBlocks [] = []
+splitBlocks arr = [Block{}]
+
 {-
     https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
 
@@ -51,7 +75,7 @@ hash inputData = do
     let byteString :: ByteStringLazy.ByteString = Binary.encode inputData
     let bytes :: [Word8] = ByteStringLazy.unpack byteString
 
-    -- (1) PADDING BITS
+    -- (1) Add padding bits
     -- Append a '1' bit and fill with '0' until the bit-length of the
     -- input adheres to:
     --     input % 512 == 448
@@ -60,21 +84,38 @@ hash inputData = do
     -- be a multiple of 8.
     let padded = padBlock $ bytes ++ [0b1000_0000]
 
-    -- (2) APPEND LENGTH
+    -- (2) Append length
     -- Append the 64 bit representation of the original length (in bits)
     let originalLen :: [Word8] = ByteStringLazy.unpack $ Binary.encode
                                                        $ 8 * length bytes
 
     let blocks = padded ++ originalLen
 
-    -- Set starting values
-    let digest = Digest {
+    -- (3) Set starting values
+    let digest = Block {
         a = 0x0123_4567,
         b = 0x89ab_cdef,
         c = 0xfedc_ba98,
         d = 0x7654_3210
     }
 
-    -- Each 512 bit block is split into 16 words (each being 32-bit)
+    -- (4) Process message
+    -- The blocks are in a multiple of 16 byte words, i.e. the digest can be
+    -- evenly fit over it.
+    --
+    --    /* Process each 16-word block. */
+    --    For i = 0 to N/16-1 do
+    --
+    --      /* Copy block i into X. */
+    --      For j = 0 to 15 do
+    --          Set X[j] to M[i*16+j].
+    --      end
+    --
+    --
+    let roundDigest = digest
+
+    -- (splitBlocks blocks)
+
+
     blocks
 
