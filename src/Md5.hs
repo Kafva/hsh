@@ -76,6 +76,5 @@ hash inputData = do
     }
 
     -- Each 512 bit block is split into 16 words (each being 32-bit)
-    -- blocks
-    [10,2,3]
+    blocks
 

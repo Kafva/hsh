@@ -5,12 +5,16 @@ module Types (
     Word32,
     Word64,
     Config(..), -- constructor
-    ConfigMonad
+    ConfigMonad,
+    word8ArrayToHexString
 ) where
 
 import Control.Monad.Reader
 import qualified Data.Binary as Binary
 import qualified Data.Word (Word32, Word64)
+
+import Numeric (showHex)
+import Data.Char(toUpper)
 
 type Word8 = Binary.Word8
 type Word32 = Data.Word.Word32
@@ -26,3 +30,18 @@ data Config = Config {
     debug :: Bool,
     algorithm :: String
 } deriving Show
+
+
+word8ToHexString :: Word8 -> String
+word8ToHexString w = do
+    let hexValue = map toUpper (showHex w "")
+    if length hexValue == 1
+    then "0x0" ++ hexValue
+    else "0x" ++ hexValue
+
+word8ArrayToHexString :: [Word8] -> String
+word8ArrayToHexString [] = "[]"
+word8ArrayToHexString arr = do
+    let s = concatMap ((++ ", ") . word8ToHexString) arr
+    "[" ++ take (length s - 2) s ++ "]"
+

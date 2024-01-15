@@ -5,7 +5,7 @@ module Main (main) where
 import Md5
 import Sha1
 import Template
-import Types (Config(..))
+import Types (Config(..), word8ArrayToHexString)
 import qualified Log
 
 import System.IO (hPutStrLn, stderr)
@@ -14,7 +14,6 @@ import System.Console.GetOpt
 import Data.Foldable (for_)
 import System.Exit (exitFailure, exitSuccess)
 import Control.Monad.Reader
-import Numeric (showHex)
 
 
 defaultOptions :: Config
@@ -61,9 +60,6 @@ options = [
         "Select algorithm [md5,sha1]"
     ]
 
--- charToHexString :: Char8 -> String
--- charToHexString c = showHex (fromEnum c) ""
-
 main :: IO ()
 main = do
     args <- getArgs
@@ -88,8 +84,7 @@ main = do
     case algorithm opts of
         "md5"  -> do
             let digest = Md5.hash input
-            print $ showHex (head digest) ""
-
+            runReaderT (Log.debug' "digest: %s" (word8ArrayToHexString digest)) opts
             runReaderT (Log.debug' "input length %d bit(s)" (8*length input)) opts
             runReaderT (Log.debug' "digest length %d bit(s)" (8*length digest)) opts
 
