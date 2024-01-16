@@ -45,10 +45,10 @@ combineToWord32 :: [Word8] -> Word32
 combineToWord32 bytes =
     if length bytes /= 4
     then 0
-    else shiftL $ fromIntegral (bytes!!0) 24 .|.
-         shiftL $ fromIntegral (bytes!!1) 16 .|.
-         shiftL $ fromIntegral (bytes!!2) 8 .|.
-         fromIntegral bytes!!3
+    else (shiftL (fromIntegral $ bytes!!0) 24) .|.
+         (shiftL (fromIntegral $ bytes!!1) 16) .|.
+         (shiftL (fromIntegral $ bytes!!2) 8) .|.
+         fromIntegral (bytes!!3)
 
 -- Split the given array of bytes into a list of 32 byte entries
 -- Returns an empty list if the list is not evenly divisable
@@ -60,9 +60,18 @@ splitWord32 arr = do
     else combineToWord32 (take 4 arr) : splitWord32 (drop 4 arr)
 
 
-splitBlocks :: [Word8] -> [Block]
+splitBlocks :: [Word32] -> [Block]
 splitBlocks [] = []
-splitBlocks arr = [Block{}]
+splitBlocks arr = do
+    if mod (length arr) 4 /= 0
+    then []
+    else
+        Block {
+            a = arr!!0,
+            b = arr!!1,
+            c = arr!!2,
+            d = arr!!3
+        } : splitBlocks (drop 4 arr)
 
 {-
     https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
@@ -89,7 +98,7 @@ hash inputData = do
     let originalLen :: [Word8] = ByteStringLazy.unpack $ Binary.encode
                                                        $ 8 * length bytes
 
-    let blocks = padded ++ originalLen
+    let startBytes = padded ++ originalLen
 
     -- (3) Set starting values
     let digest = Block {
@@ -112,10 +121,11 @@ hash inputData = do
     --      end
     --
     --
-    let roundDigest = digest
 
-    -- (splitBlocks blocks)
+    -- let roundDigest = digest
+
+    let xd = splitBlocks $ splitWord32 startBytes
 
 
-    blocks
+    startBytes
 
