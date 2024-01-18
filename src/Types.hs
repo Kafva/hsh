@@ -3,18 +3,14 @@
 module Types (
     Config(..), -- constructor
     ConfigMonad,
-    Block(..),
     word8ArrayToHexString
 ) where
 
 import Control.Monad.Reader
 import Data.Binary (Word8)
-import Data.Word (Word32)
 
 import Numeric (showHex)
 import Data.Char(toUpper)
-
-
 
 -- A Monad stack that allows us to run both IO and read from the Config
 type ConfigMonad a = ReaderT Config IO a
@@ -25,16 +21,6 @@ data Config = Config {
     debug :: Bool,
     algorithm :: String
 } deriving Show
-
-
---  This should use qualified import to avoid name clashes with a,b,c,d   
---  https://wiki.haskell.org/Name_clashes_in_record_fields
-data Block = Block {
-    a :: Word32,
-    b :: Word32,
-    c :: Word32,
-    d :: Word32
-}
 
 word8ToHexString :: Word8 -> String
 word8ToHexString w = do

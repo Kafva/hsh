@@ -7,10 +7,22 @@ import Data.Bits ((.&.), (.|.), complement, xor, shiftL)
 import Data.Binary (Word8)
 
 import Data.Word (Word32)
-import qualified Types (Block(..))
 import Template (md5Table)
 
--- type Block = Types.Block
+{-
+    The output digest is comprised of 4 32-bit words (16 bytes)
+    Field names: https://wiki.haskell.org/Name_clashes_in_record_fields
+-}
+data Digest = Digest {
+    wordA :: Word32,
+    wordB :: Word32,
+    wordC :: Word32,
+    wordD :: Word32
+}
+
+-- The input stream is divided into blocks of 16 32-bit words (64 bytes)
+data Block = Block [Word32]
+
 
 padBlock :: [Word8] -> [Word8]
 padBlock bytes = do
@@ -36,11 +48,15 @@ auxI :: Word32 -> Word32 -> Word32 -> Word32
 auxI x y z = xor y $ x .&. (complement z)
 
 -- a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
-round1 :: Types.Block -> Types.Block -> Word32 -> Word32 -> Word32 -> Word32
-round1 dgst blk k s t = do
+auxRound1 :: Digest -> Block -> Int -> Int -> Int -> Word32
+auxRound1 dgst blk k s t = do
+    let a = wordA dgst
+    let b = wordB dgst
+    let c = wordC dgst
+    let d = wordD dgst
     2
-    --shiftL (b dgst + ( a + auxF(b,c,d) + blk!!k + md5Table!!t )) s
-    --shiftL (b + ( a + auxF(b,c,d) + blk!!k + md5Table!!t )) s
+    -- b + (a + auxF(b c d) + (blk!!k) + (md5Table!!t) )
+    -- shiftL (b + (a + auxF(b,c,d) + (blk!!k) + md5Table!!t )) s
 
 combineToWord32 :: [Word8] -> Word32
 combineToWord32 bytes =
@@ -61,17 +77,14 @@ splitWord32 arr = do
     else combineToWord32 (take 4 arr) : splitWord32 (drop 4 arr)
 
 
-splitBlocks :: [Word32] -> [Types.Block]
+splitBlocks :: [Word32] -> [Block]
 splitBlocks [] = []
 splitBlocks arr = do
-    if mod (length arr) 4 /= 0
+    if mod (length arr) 16 /= 0
     then []
     else
-        Types.Block (arr!!0)
-              (arr!!1)
-              (arr!!2)
-              (arr!!3)
-        : splitBlocks (drop 4 arr)
+        Block (take 16 arr)
+        : splitBlocks (drop 16 arr)
 
 {-
     https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
@@ -101,11 +114,11 @@ hash inputData = do
     let startBytes = padded ++ originalLen
 
     -- (3) Set starting values
-    let digest = Types.Block 0x0123_4567
-                       0x89ab_cdef
-                       0xfedc_ba98
-                       0x7654_3210
-                    
+    let digest = Digest 0x0123_4567
+                        0x89ab_cdef
+                        0xfedc_ba98
+                        0x7654_3210
+
     -- (4) Process message
     -- The blocks are in multiples of 16 byte words, i.e. the digest can be
     -- evenly fit over it.
@@ -122,9 +135,9 @@ hash inputData = do
 
     let roundDigest = digest
 
-    -- let blocks = splitBlocks $ splitWord32 startBytes
+    let blocks = splitBlocks $ splitWord32 startBytes
 
-    -- let x = round1 roundDigest (blocks!!0) 0 7 1
+    let x = auxRound1 roundDigest (blocks!!0) 0 7 1
 
     startBytes
 
