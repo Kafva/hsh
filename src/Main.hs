@@ -15,7 +15,6 @@ import Data.Foldable (for_)
 import System.Exit (exitFailure, exitSuccess)
 import Control.Monad.Reader
 
-
 defaultOptions :: Config
 defaultOptions = Config {
     help = False,

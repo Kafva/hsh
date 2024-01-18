@@ -4,18 +4,13 @@ import qualified Data.ByteString.Lazy as ByteStringLazy
 import qualified Data.Binary as Binary
 
 import Data.Bits ((.&.), (.|.), complement, xor, shiftL)
-import Types
+import Data.Binary (Word8)
 
-{-
-    A 16 byte buffer divided into 4 (32 bit) registers is used to compute
-    the digest (a b c d).
--}
-data Block = Block {
-    a :: Word32,
-    b :: Word32,
-    c :: Word32,
-    d :: Word32
-}
+import Data.Word (Word32)
+import qualified Types (Block(..))
+import Template (md5Table)
+
+-- type Block = Types.Block
 
 padBlock :: [Word8] -> [Word8]
 padBlock bytes = do
@@ -26,20 +21,26 @@ padBlock bytes = do
 
 {-
     Each of the auxillary functions are defined to act over bits
-    in each word and map 3 words onto 1.
+    in each word and map 3 32-bit words onto 1.
 -}
-f :: Word8 -> Word8 -> Word8 -> Word8
-f x y z = (x .&. y) .|. ((complement x) .&. z)
+auxF :: Word32 -> Word32 -> Word32 -> Word32
+auxF x y z = (x .&. y) .|. ((complement x) .&. z)
 
-g :: Word8 -> Word8 -> Word8 -> Word8
-g x y z = (x .&. z) .|. (y .&. (complement z))
+auxG :: Word32 -> Word32 -> Word32 -> Word32
+auxG x y z = (x .&. z) .|. (y .&. (complement z))
 
-h :: Word8 -> Word8 -> Word8 -> Word8
-h x y z = xor (xor x y) z
+auxH :: Word32 -> Word32 -> Word32 -> Word32
+auxH x y z = xor (xor x y) z
 
-i :: Word8 -> Word8 -> Word8 -> Word8
-i x y z = xor y $ x .&. (complement z)
+auxI :: Word32 -> Word32 -> Word32 -> Word32
+auxI x y z = xor y $ x .&. (complement z)
 
+-- a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
+round1 :: Types.Block -> Types.Block -> Word32 -> Word32 -> Word32 -> Word32
+round1 dgst blk k s t = do
+    2
+    --shiftL (b dgst + ( a + auxF(b,c,d) + blk!!k + md5Table!!t )) s
+    --shiftL (b + ( a + auxF(b,c,d) + blk!!k + md5Table!!t )) s
 
 combineToWord32 :: [Word8] -> Word32
 combineToWord32 bytes =
@@ -60,18 +61,17 @@ splitWord32 arr = do
     else combineToWord32 (take 4 arr) : splitWord32 (drop 4 arr)
 
 
-splitBlocks :: [Word32] -> [Block]
+splitBlocks :: [Word32] -> [Types.Block]
 splitBlocks [] = []
 splitBlocks arr = do
     if mod (length arr) 4 /= 0
     then []
     else
-        Block {
-            a = arr!!0,
-            b = arr!!1,
-            c = arr!!2,
-            d = arr!!3
-        } : splitBlocks (drop 4 arr)
+        Types.Block (arr!!0)
+              (arr!!1)
+              (arr!!2)
+              (arr!!3)
+        : splitBlocks (drop 4 arr)
 
 {-
     https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
@@ -101,15 +101,13 @@ hash inputData = do
     let startBytes = padded ++ originalLen
 
     -- (3) Set starting values
-    let digest = Block {
-        a = 0x0123_4567,
-        b = 0x89ab_cdef,
-        c = 0xfedc_ba98,
-        d = 0x7654_3210
-    }
-
+    let digest = Types.Block 0x0123_4567
+                       0x89ab_cdef
+                       0xfedc_ba98
+                       0x7654_3210
+                    
     -- (4) Process message
-    -- The blocks are in a multiple of 16 byte words, i.e. the digest can be
+    -- The blocks are in multiples of 16 byte words, i.e. the digest can be
     -- evenly fit over it.
     --
     --    /* Process each 16-word block. */
@@ -122,10 +120,11 @@ hash inputData = do
     --
     --
 
-    -- let roundDigest = digest
+    let roundDigest = digest
 
-    let xd = splitBlocks $ splitWord32 startBytes
+    -- let blocks = splitBlocks $ splitWord32 startBytes
 
+    -- let x = round1 roundDigest (blocks!!0) 0 7 1
 
     startBytes
 

@@ -1,24 +1,19 @@
 {-# LANGUAGE StrictData #-}
 
 module Types (
-    Word8,
-    Word32,
-    Word64,
     Config(..), -- constructor
     ConfigMonad,
+    Block(..),
     word8ArrayToHexString
 ) where
 
 import Control.Monad.Reader
-import qualified Data.Binary as Binary
-import qualified Data.Word (Word32, Word64)
+import Data.Binary (Word8)
+import Data.Word (Word32)
 
 import Numeric (showHex)
 import Data.Char(toUpper)
 
-type Word8 = Binary.Word8
-type Word32 = Data.Word.Word32
-type Word64 = Data.Word.Word64
 
 
 -- A Monad stack that allows us to run both IO and read from the Config
@@ -31,6 +26,15 @@ data Config = Config {
     algorithm :: String
 } deriving Show
 
+
+--  This should use qualified import to avoid name clashes with a,b,c,d   
+--  https://wiki.haskell.org/Name_clashes_in_record_fields
+data Block = Block {
+    a :: Word32,
+    b :: Word32,
+    c :: Word32,
+    d :: Word32
+}
 
 word8ToHexString :: Word8 -> String
 word8ToHexString w = do

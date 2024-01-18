@@ -1,9 +1,8 @@
 module Sha1 (hash) where
 
-import Types
-
 import qualified Data.ByteString.Lazy as ByteStringLazy
 import qualified Data.Binary as Binary
+import Data.Binary (Word8)
 
 hash :: [Char] -> [Word8]
 hash inputData = do
