@@ -8,6 +8,7 @@ import Template
 import Types (Config(..), word8ArrayToHexString)
 import qualified Log
 
+import GHC.Base (when)
 import System.IO (hPutStrLn, stderr)
 import System.Environment (getProgName, getArgs)
 import System.Console.GetOpt
@@ -77,7 +78,7 @@ main = do
     Log.info' "%s\n" $ show opts
 
     -- Read from stdin
-    input <- Prelude.getContents
+    input <- getContents
     -- let input = ['a', 'b', 'c']
 
     case algorithm opts of

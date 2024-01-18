@@ -41,7 +41,7 @@ executable hsh
                       Template
                       Types
                       Log
-    build-depends:    base ^>=4.17.0.0,
+    build-depends:    base ^>=4.19.0.0,
                       bytestring,
                       binary,
                       template-haskell,
