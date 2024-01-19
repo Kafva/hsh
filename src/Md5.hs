@@ -15,15 +15,8 @@ import Template (md5Table)
     The output digest is comprised of 4 32-bit words (16 bytes)
     Field names: https://wiki.haskell.org/Name_clashes_in_record_fields
 -}
-data Digest = Digest {
-    wordA :: Word32,
-    wordB :: Word32,
-    wordC :: Word32,
-    wordD :: Word32
-}
-
--- The input stream is divided into blocks of 16 32-bit words (64 bytes)
-type Block = [Word32]
+type Digest = [Word32] -- 4 slots
+type Block = [Word32]  -- 16 slots
 
 padBlock :: [Word8] -> [Word8]
 padBlock bytes = do
@@ -49,14 +42,14 @@ auxI :: Word32 -> Word32 -> Word32 -> Word32
 auxI x y z = xor y $ x .&. (complement z)
 
 -- a = b + ((a + F(b,c,d) + X[k] + T[i]) << s)
-auxRound1 :: Digest -> Block -> Int -> Int -> Int -> Word32
-auxRound1 dgst blk k s t = do
-    let a = wordA dgst
-    let b = wordB dgst
-    let c = wordC dgst
-    let d = wordD dgst
+auxRound1 :: Digest -> Int -> Int -> Int -> Int -> Block -> Int -> Int -> Int -> Word32
+auxRound1 dgst a b c d blk k s t = do
+    let da = dgst!!a
+    let db = dgst!!b
+    let dc = dgst!!c
+    let dd = dgst!!d
 
-    shiftL (b + (a + (auxF b c d) + (blk!!k) + $(md5Table)!!t)) s
+    shiftL (db + (da + (auxF db dc dd) + (blk!!k) + $(md5Table)!!t)) s
 
 
 combineToWord32 :: [Word8] -> Word32
@@ -116,10 +109,10 @@ hash inputData = do
     let startBytes = padded ++ originalLen
 
     -- (3) Set starting values
-    let digest = Digest 0x0123_4567
-                        0x89ab_cdef
-                        0xfedc_ba98
-                        0x7654_3210
+    let digest = [0x0123_4567,
+                  0x89ab_cdef,
+                  0xfedc_ba98,
+                  0x7654_3210]
 
     -- (4) Process message
     -- The blocks are in multiples of 16 byte words, i.e. the digest can be
@@ -139,7 +132,7 @@ hash inputData = do
 
     let blocks = splitBlocks $ splitWord32 startBytes
 
-    let x = auxRound1 roundDigest (blocks!!0) 0 7 1
+    let x = auxRound1 roundDigest 0 1 2 3 (blocks!!0) 0 7 1
 
     startBytes
 
