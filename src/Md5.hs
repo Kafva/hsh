@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Md5 (hash) where
 
 import qualified Data.ByteString.Lazy as ByteStringLazy
@@ -21,8 +23,7 @@ data Digest = Digest {
 }
 
 -- The input stream is divided into blocks of 16 32-bit words (64 bytes)
-data Block = Block [Word32]
-
+type Block = [Word32]
 
 padBlock :: [Word8] -> [Word8]
 padBlock bytes = do
@@ -47,16 +48,16 @@ auxH x y z = xor (xor x y) z
 auxI :: Word32 -> Word32 -> Word32 -> Word32
 auxI x y z = xor y $ x .&. (complement z)
 
--- a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
+-- a = b + ((a + F(b,c,d) + X[k] + T[i]) << s)
 auxRound1 :: Digest -> Block -> Int -> Int -> Int -> Word32
 auxRound1 dgst blk k s t = do
     let a = wordA dgst
     let b = wordB dgst
     let c = wordC dgst
     let d = wordD dgst
-    2
-    -- b + (a + auxF(b c d) + (blk!!k) + (md5Table!!t) )
-    -- shiftL (b + (a + auxF(b,c,d) + (blk!!k) + md5Table!!t )) s
+
+    shiftL (b + (a + (auxF b c d) + (blk!!k) + $(md5Table)!!t)) s
+
 
 combineToWord32 :: [Word8] -> Word32
 combineToWord32 bytes =
@@ -83,11 +84,12 @@ splitBlocks arr = do
     if mod (length arr) 16 /= 0
     then []
     else
-        Block (take 16 arr)
+        (take 16 arr)
         : splitBlocks (drop 16 arr)
 
 {-
     https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
+    https://www.ietf.org/rfc/rfc1321.txt
 
     Hash algorithms map a variable length bit-string onto a fixed length
     bit-string, 128 bits (16 bytes) in the case of MD5.
