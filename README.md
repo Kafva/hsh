@@ -13,6 +13,6 @@ EOF
 cabal repl
 (ghci) :script .run.ghci
 
-# Reference implementation
-clang reference/Md5.c -o md5
+# RFC implementation
+clang -m32 reference/Md5.c -o Md5
 ```

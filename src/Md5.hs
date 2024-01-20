@@ -52,19 +52,80 @@ auxH x y z = xor (xor x y) z
 auxI :: Word32 -> Word32 -> Word32 -> Word32
 auxI x y z = xor y (x .&. (complement z))
 
--- a = b + ((a + F(b,c,d) + X[k] + T[i]) << s)
-auxRound :: Digest -> [Int] -> Block -> [Int] -> (Word32 -> Word32 -> Word32 -> Word32) ->
-            Digest
-auxRound dgst dgstIndices blk kstIndices auxFunction = do
-    let a = dgst!!(dgstIndices!!0)
-    let b = dgst!!(dgstIndices!!1)
-    let c = dgst!!(dgstIndices!!2)
-    let d = dgst!!(dgstIndices!!3)
-    let k = kstIndices!!0
-    let s = kstIndices!!1
-    let t = kstIndices!!2
-    let newA = shiftL (b + (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!t)) s
-    digestNew dgstIndices [newA, b, c, d]
+
+-- The indices move over the 64 slots in a block
+-- The reference implementation iterates over i=1..64
+-- Most others use i=0..63, these are indices in the md5Table.
+--
+-- X is the current block, an array of 16 Word32 values (64 bytes)
+--  X[0..16]
+--
+-- T is the precomputed md5table, an array of 64 Word32 values
+--  T[0..64]
+--
+--
+consumeBlock :: Digest -> Block -> Digest
+consumeBlock digest blk = digest
+
+digestNewA :: Digest -> Block -> 
+              (Word32 -> Word32 -> Word32 -> Word32) ->
+              Int -> Int -> Int -> 
+              Digest
+digestNewA digest blk auxFunction i t s = do
+    let a = digest!!0
+    let b = digest!!1
+    let c = digest!!2
+    let d = digest!!3
+    [auxRound a b c d auxFunction blk i t s,
+     b,
+     c,
+     d]
+
+auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
+            (Word32 -> Word32 -> Word32 -> Word32) ->
+            Block ->
+            Int -> Int -> Int -> 
+            Word32
+auxRound a b c d auxFunction blk i t s = 
+    shiftL (b + (a + (auxFunction b c d) + (blk!!i) + $(md5Table)!!t)) s
+
+processIndex :: Digest -> Block -> Int -> Digest
+processIndex digest blk i
+    -- Round 1
+    -- (i) block index: range(0,15,1)   [0..16]
+    -- (t) table index: range(0,15,1)   [0..64]
+    -- (s) shift by: 
+    --      newA (7)
+    --      newB (12)
+    --      newC (17)
+    --      newD (22)
+    | i < 16 = case (mod i 4) of
+        0 -> digestNewA digest blk auxF i i 7
+        1 -> digestNewA digest blk auxF i i 12
+        2 -> digestNewA digest blk auxF i i 17
+        _ -> digestNewA digest blk auxF i i 22
+    -- Round 2
+    | i < 32 = digest
+    -- Round 3
+    | i < 48 = digest
+    -- Round 4
+    | otherwise = digest
+
+
+
+
+-- auxRound :: Digest -> [Int] -> Block -> [Int] -> (Word32 -> Word32 -> Word32 -> Word32) ->
+--             Digest
+-- auxRound digest dgstIndices blk kstIndices auxFunction = do
+--     let a = digest!!(dgstIndices!!0)
+--     let b = digest!!(dgstIndices!!1)
+--     let c = digest!!(dgstIndices!!2)
+--     let d = digest!!(dgstIndices!!3)
+--     let k = kstIndices!!0
+--     let s = kstIndices!!1
+--     let t = kstIndices!!2
+--     let newA = shiftL (b + (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!t)) s
+--     digestNew dgstIndices [newA, b, c, d]
 
 
 word8ArrayToWord32 :: [Word8] -> Word32
@@ -121,10 +182,14 @@ hash bytes = do
     let startBytes = padded ++ originalLen
 
     -- (3) Set starting values
-    let startDigest = [0x0123_4567,
-                       0x89AB_CDEF,
-                       0xFEDC_BA98,
-                       0x7654_3210]
+    --
+    -- The RFC uses big-endian byte ordering, i.e. the MSB is at the highest
+    -- address, i.e. 0x11223344 ---> [0x44 0x33 0x22 0x11]
+    --
+    let startDigest = [0x67452301,
+                       0xEFCDAB89,
+                       0x98BADCFE,
+                       0x10325476]
 
     -- (4) Process message
     -- The blocks are in multiples of 16 byte words, i.e. the digest can be
@@ -134,16 +199,16 @@ hash bytes = do
 
     let blocks = word32ArrayToBlocks $ word8toWord32Array startBytes
 
-    let round1ABCD :: [[Int]] = [[0, 1, 2, 3],
-                                 [3, 0, 1, 2],
-                                 [2, 3, 0, 1],
-                                 [1, 2, 3, 0]]
+    --let round1ABCD :: [[Int]] = [[0, 1, 2, 3],
+    --                             [3, 0, 1, 2],
+    --                             [2, 3, 0, 1],
+    --                             [1, 2, 3, 0]]
 
-    let round1KSI :: [[Int]] = [[ 0,   7,   1 ],  [ 1,  12,   2 ],  [ 2,  17,   3 ],  [ 3,  22,   4 ],
-                                [ 4,   7,   5 ],  [ 5,  12,   6 ],  [ 6,  17,   7 ],  [ 7,  22,   8 ],
-                                [ 8,   7,   9 ],  [ 9,  12,  10 ],  [10,  17,  11 ],  [11,  22,  12 ],
-                                [12,   7,  13 ],  [13,  12,  14 ],  [14,  17,  15 ],  [15,  22,  16 ]]
+    --let round1KSI :: [[Int]] = [[ 0,   7,   1 ],  [ 1,  12,   2 ],  [ 2,  17,   3 ],  [ 3,  22,   4 ],
+    --                            [ 4,   7,   5 ],  [ 5,  12,   6 ],  [ 6,  17,   7 ],  [ 7,  22,   8 ],
+    --                            [ 8,   7,   9 ],  [ 9,  12,  10 ],  [10,  17,  11 ],  [11,  22,  12 ],
+    --                            [12,   7,  13 ],  [13,  12,  14 ],  [14,  17,  15 ],  [15,  22,  16 ]]
 
-    let digest  = auxRound startDigest (round1ABCD!!0) (blocks!!0) (round1KSI!!0)  auxF
+    ----let digest  = auxRound startDigest (round1ABCD!!0) (blocks!!0) (round1KSI!!0)  auxF
 
-    concatMap word32ToWord8Array digest
+    concatMap word32ToWord8Array startDigest
