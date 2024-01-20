@@ -67,9 +67,9 @@ auxI x y z = xor y (x .&. (complement z))
 consumeBlock :: Digest -> Block -> Digest
 consumeBlock digest blk = digest
 
-digestNewA :: Digest -> Block -> 
+digestNewA :: Digest -> Block ->
               (Word32 -> Word32 -> Word32 -> Word32) ->
-              Int -> Int -> Int -> 
+              Int -> Int -> Int ->
               Digest
 digestNewA digest blk auxFunction i t s = do
     let a = digest!!0
@@ -84,9 +84,9 @@ digestNewA digest blk auxFunction i t s = do
 auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
             (Word32 -> Word32 -> Word32 -> Word32) ->
             Block ->
-            Int -> Int -> Int -> 
+            Int -> Int -> Int ->
             Word32
-auxRound a b c d auxFunction blk i t s = 
+auxRound a b c d auxFunction blk i t s =
     shiftL (b + (a + (auxFunction b c d) + (blk!!i) + $(md5Table)!!t)) s
 
 processIndex :: Digest -> Block -> Int -> Digest
@@ -94,7 +94,7 @@ processIndex digest blk i
     -- Round 1
     -- (i) block index: range(0,15,1)   [0..16]
     -- (t) table index: range(0,15,1)   [0..64]
-    -- (s) shift by: 
+    -- (s) shift by:
     --      newA (7)
     --      newB (12)
     --      newC (17)
@@ -211,4 +211,5 @@ hash bytes = do
 
     ----let digest  = auxRound startDigest (round1ABCD!!0) (blocks!!0) (round1KSI!!0)  auxF
 
-    concatMap word32ToWord8Array startDigest
+    let digest = processIndex startDigest (blocks!!0) 0
+    concatMap word32ToWord8Array digest
