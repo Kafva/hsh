@@ -14,5 +14,5 @@ cabal repl
 (ghci) :script .run.ghci
 
 # RFC implementation
-clang -m32 reference/Md5.c -o Md5
+clang -m32 rfc/Md5.c -o Md5
 ```
