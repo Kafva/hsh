@@ -37,7 +37,7 @@ padBlock bytes = do
     else bytes
 
 {-
-    Each of the auxillary functions are defined to act over bits
+    Each of the auxiliary functions are defined to act over bits
     in each word and map 3 32-bit words onto 1.
 -}
 auxF :: Word32 -> Word32 -> Word32 -> Word32
@@ -77,7 +77,7 @@ word8ArrayToWord32 bytes =
          fromIntegral (bytes!!3)
 
 -- Split the given array of bytes into a list of 32 byte entries
--- Returns an empty list if the list is not evenly divisable
+-- Returns an empty list if the list is not evenly divisible
 word8toWord32Array :: [Word8] -> [Word32]
 word8toWord32Array [] = []
 word8toWord32Array arr = do
@@ -125,8 +125,8 @@ hash inputData = do
 
     -- (3) Set starting values
     let startDigest = [0x0123_4567,
-                       0x89ab_cdef,
-                       0xfedc_ba98,
+                       0x89AB_CDEF,
+                       0xFEDC_BA98,
                        0x7654_3210]
 
     -- (4) Process message
