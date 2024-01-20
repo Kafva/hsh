@@ -42,14 +42,14 @@ auxI :: Word32 -> Word32 -> Word32 -> Word32
 auxI x y z = xor y $ x .&. (complement z)
 
 -- a = b + ((a + F(b,c,d) + X[k] + T[i]) << s)
-auxRound1 :: Digest -> Int -> Int -> Int -> Int -> Block -> Int -> Int -> Int -> Word32
-auxRound1 dgst a b c d blk k s t = do
-    let da = dgst!!a
-    let db = dgst!!b
-    let dc = dgst!!c
-    let dd = dgst!!d
-
-    shiftL (db + (da + (auxF db dc dd) + (blk!!k) + $(md5Table)!!t)) s
+auxRound :: Digest -> Int -> Int -> Int -> Int -> Block -> Int -> Int -> Int ->
+            (Word32 -> Word32 -> Word32 -> Word32) -> Word32
+auxRound dgst aIdx bIdx cIdx dIdx blk k s t auxFunction = do
+    let a = dgst!!aIdx
+    let b = dgst!!bIdx
+    let c = dgst!!cIdx
+    let d = dgst!!dIdx
+    shiftL (b + (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!t)) s
 
 
 combineToWord32 :: [Word8] -> Word32
@@ -132,7 +132,7 @@ hash inputData = do
 
     let blocks = splitBlocks $ splitWord32 startBytes
 
-    let x = auxRound1 roundDigest 0 1 2 3 (blocks!!0) 0 7 1
+    let x = auxRound roundDigest 0 1 2 3 (blocks!!0) 0 7 1 auxF
 
     startBytes
 
