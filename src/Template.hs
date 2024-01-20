@@ -1,6 +1,4 @@
-{-
-    Compile time executed functions
--}
+{- Compile time executed functions -}
 module Template (programVersion, md5Table) where
 
 import System.Process (readProcess)
