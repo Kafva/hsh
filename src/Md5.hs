@@ -102,11 +102,8 @@ word32ArrayToBlocks arr = do
     Hash algorithms map a variable length bit-string onto a fixed length
     bit-string, 128 bits (16 bytes) in the case of MD5.
 -}
-hash :: [Char] -> [Word8]
-hash inputData = do
-    let byteString :: ByteStringLazy.ByteString = Binary.encode inputData
-    let bytes :: [Word8] = ByteStringLazy.unpack byteString
-
+hash :: [Word8] -> [Word8]
+hash bytes = do
     -- (1) Add padding bits
     -- Append a '1' bit and fill with '0' until the bit-length of the
     -- input adheres to:

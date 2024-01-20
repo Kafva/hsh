@@ -16,6 +16,10 @@ import Data.Foldable (for_)
 import System.Exit (exitFailure, exitSuccess)
 import Control.Monad.Reader
 
+import qualified Data.ByteString.Lazy as ByteStringLazy
+import qualified Data.Binary as Binary
+import Data.Word (Word8)
+
 defaultOptions :: Config
 defaultOptions = Config {
     help = False,
@@ -81,11 +85,15 @@ main = do
     input <- getContents
     -- let input = ['a', 'b', 'c']
 
+    let byteString :: ByteStringLazy.ByteString = Binary.encode input
+    let bytes :: [Word8] = ByteStringLazy.unpack byteString
+
     case algorithm opts of
         "md5"  -> do
-            let digest = Md5.hash input
+            let digest = Md5.hash bytes
             runReaderT (Log.debug' "digest: %s" (word8ArrayToHexString digest)) opts
-            runReaderT (Log.debug' "input length %d bit(s)" (8*length input)) opts
+            runReaderT (Log.debug' "input: %s" (word8ArrayToHexString bytes)) opts
+            runReaderT (Log.debug' "input length %d bit(s)" (8*length bytes)) opts
             runReaderT (Log.debug' "digest length %d bit(s)" (8*length digest)) opts
 
         "sha1" -> do
