@@ -5,7 +5,7 @@ module Main (main) where
 import Md5
 import Sha1
 import Template
-import Types (Config(..), word8ArrayToHexString)
+import Types (Config(..), word8ArrayToHexString, word8ArrayToHexArray)
 import qualified Log
 
 import GHC.Base (when)
@@ -91,10 +91,13 @@ main = do
     case algorithm opts of
         "md5"  -> do
             let digest = Md5.hash bytes
-            runReaderT (Log.debug' "raw input: %s" (word8ArrayToHexString bytes)) opts
+            -- runReaderT (Log.debug' "table: %s" $ show $(md5Table)) opts
+            runReaderT (Log.debug' "raw input: %s" (word8ArrayToHexArray bytes)) opts
             runReaderT (Log.debug' "raw input length %d byte(s)" (length bytes)) opts
-            runReaderT (Log.debug' "digest: %s" (word8ArrayToHexString digest)) opts
-            runReaderT (Log.debug' "digest length %d byte(s)" (length digest)) opts
+            runReaderT (Log.debug' "output: %s" (word8ArrayToHexArray digest)) opts
+            runReaderT (Log.debug' "output length %d byte(s)" (length digest)) opts
+
+            putStrLn $ word8ArrayToHexString digest
 
         "sha1" -> do
             print $ Sha1.hash bytes

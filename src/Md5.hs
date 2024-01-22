@@ -193,8 +193,8 @@ hash bytes = do
     -- address, i.e. 0x11223344 ---> [0x44 0x33 0x22 0x11]
     --
     let startDigest = [0x67452301,
-                       0xEFCDAB89,
-                       0x98BADCFE,
+                       0xefcdab89,
+                       0x98badcfe,
                        0x10325476]
 
     -- (4) Process message
