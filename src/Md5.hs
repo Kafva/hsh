@@ -6,7 +6,7 @@ import qualified Data.ByteString.Lazy as ByteStringLazy
 import qualified Data.Binary as Binary
 
 import Data.Bits ((.&.), (.|.), complement, xor, shiftL, shiftR)
-import Data.Binary (Word8, Word32)
+import Data.Binary (Word8, Word32, Word64)
 
 import Template (md5Table)
 
@@ -17,11 +17,12 @@ import Template (md5Table)
 type Digest = [Word32] -- 4 slots
 type Block = [Word32]  -- 16 slots
 
-digestNew :: [Int] -> [Word32] -> Digest
-digestNew dgstIndices abcd = [abcd!!(dgstIndices!!0),
-                              abcd!!(dgstIndices!!1),
-                              abcd!!(dgstIndices!!2),
-                              abcd!!(dgstIndices!!3)]
+-- Type signature for each `digestNew` function
+type NewDigestSignature = Word32 -> Word32 -> Word32 -> Word32 ->
+                          Block ->
+                          (Word32 -> Word32 -> Word32 -> Word32) ->
+                          Int -> Int -> Int ->
+                          Digest
 
 word32ToWord8Array :: Word32 -> [Word8]
 word32ToWord8Array word = [fromIntegral word,
@@ -29,12 +30,15 @@ word32ToWord8Array word = [fromIntegral word,
                            fromIntegral (shiftR word 16),
                            fromIntegral (shiftR word 24)]
 
-padBlock :: [Word8] -> [Word8]
-padBlock bytes = do
-    let bitsLen = 8 * length bytes
-    if mod bitsLen 512 /= 448
-    then padBlock $ bytes ++ [0x0]
-    else bytes
+word64ToWord8Array :: Word64 -> [Word8]
+word64ToWord8Array word = [fromIntegral word,
+                           fromIntegral (shiftR word 8),
+                           fromIntegral (shiftR word 16),
+                           fromIntegral (shiftR word 24),
+                           fromIntegral (shiftR word 32),
+                           fromIntegral (shiftR word 40),
+                           fromIntegral (shiftR word 48),
+                           fromIntegral (shiftR word 56)]
 
 {-
     Each of the auxiliary functions are defined to act over bits
@@ -67,19 +71,26 @@ auxI x y z = xor y (x .&. (complement z))
 consumeBlock :: Digest -> Block -> Digest
 consumeBlock digest blk = digest
 
-digestNewA :: Digest -> Block ->
-              (Word32 -> Word32 -> Word32 -> Word32) ->
-              Int -> Int -> Int ->
-              Digest
-digestNewA digest blk auxFunction i t s = do
-    let a = digest!!0
-    let b = digest!!1
-    let c = digest!!2
-    let d = digest!!3
-    [auxRound a b c d auxFunction blk i t s,
-     b,
-     c,
-     d]
+
+digestNewA :: NewDigestSignature
+digestNewA a b c d blk auxFunction i t s = do
+    let newA = auxRound a b c d auxFunction blk i t s
+    [newA, b, c, d]
+
+digestNewB :: NewDigestSignature
+digestNewB a b c d blk auxFunction i t s = do
+    let newB = auxRound b c d a auxFunction blk i t s
+    [a, newB, c, d]
+
+digestNewC :: NewDigestSignature
+digestNewC a b c d blk auxFunction i t s = do
+    let newC = auxRound c d a b auxFunction blk i t s
+    [a, b, newC, d]
+
+digestNewD :: NewDigestSignature
+digestNewD a b c d blk auxFunction i t s = do
+    let newD = auxRound d a b c auxFunction blk i t s
+    [a, b, c, newD]
 
 auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
             (Word32 -> Word32 -> Word32 -> Word32) ->
@@ -88,6 +99,11 @@ auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
             Word32
 auxRound a b c d auxFunction blk i t s =
     shiftL (b + (a + (auxFunction b c d) + (blk!!i) + $(md5Table)!!t)) s
+
+-- Call `f` with each item in the provided array as a separate argument
+expandDigestArray :: (Word32 -> Word32 -> Word32 -> Word32 -> a) -> [Word32] -> a
+expandDigestArray f [a, b, c, d] = f a b c d
+expandDigestArray _ _ = error "Invalid argument: expected list with 4 items"
 
 processIndex :: Digest -> Block -> Int -> Digest
 processIndex digest blk i
@@ -100,32 +116,16 @@ processIndex digest blk i
     --      newC (17)
     --      newD (22)
     | i < 16 = case (mod i 4) of
-        0 -> digestNewA digest blk auxF i i 7
-        1 -> digestNewA digest blk auxF i i 12
-        2 -> digestNewA digest blk auxF i i 17
-        _ -> digestNewA digest blk auxF i i 22
+        0 -> expandDigestArray digestNewA digest blk auxF i i 7
+        1 -> expandDigestArray digestNewB digest blk auxF i i 12
+        2 -> expandDigestArray digestNewC digest blk auxF i i 17
+        _ -> expandDigestArray digestNewD digest blk auxF i i 22
     -- Round 2
     | i < 32 = digest
     -- Round 3
     | i < 48 = digest
     -- Round 4
     | otherwise = digest
-
-
-
-
--- auxRound :: Digest -> [Int] -> Block -> [Int] -> (Word32 -> Word32 -> Word32 -> Word32) ->
---             Digest
--- auxRound digest dgstIndices blk kstIndices auxFunction = do
---     let a = digest!!(dgstIndices!!0)
---     let b = digest!!(dgstIndices!!1)
---     let c = digest!!(dgstIndices!!2)
---     let d = digest!!(dgstIndices!!3)
---     let k = kstIndices!!0
---     let s = kstIndices!!1
---     let t = kstIndices!!2
---     let newA = shiftL (b + (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!t)) s
---     digestNew dgstIndices [newA, b, c, d]
 
 
 word8ArrayToWord32 :: [Word8] -> Word32
@@ -156,6 +156,13 @@ word32ArrayToBlocks arr = do
         (take 16 arr)
         : word32ArrayToBlocks (drop 16 arr)
 
+
+padZeroR :: [Word8] -> [Word8]
+padZeroR bytes = do
+    if (mod (length bytes) 64) /= 56
+    then padZeroR $ bytes ++ [0x0]
+    else bytes
+
 {-
     https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
     https://www.ietf.org/rfc/rfc1321.txt
@@ -169,17 +176,16 @@ hash bytes = do
     -- Append a '1' bit and fill with '0' until the bit-length of the
     -- input adheres to:
     --     input % 512 == 448
+    -- Or equivalently upon bytes:
+    --     bytes % 64 == 56
     --
-    -- We only allow complete bytes in the input data so the input will always
-    -- be a multiple of 8.
-    let padded = padBlock $ bytes ++ [0b1000_0000]
-
     -- (2) Append length
     -- Append the 64 bit representation of the original length (in bits)
-    let originalLen :: [Word8] = ByteStringLazy.unpack $ Binary.encode
-                                                       $ 8 * length bytes
+    let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
+    let paddedBytes = (padZeroR (bytes ++ [0b1000_0000])) ++
+                       word64ToWord8Array unpaddedBitCount
 
-    let startBytes = padded ++ originalLen
+    let blocks = word32ArrayToBlocks $ word8toWord32Array paddedBytes
 
     -- (3) Set starting values
     --
@@ -196,20 +202,5 @@ hash bytes = do
     -- evenly fit over it.
     -- Run the round function with each auxiliary function as described in the
     -- RFC, updating one slot in the digest for each `auxRound` call.
-
-    let blocks = word32ArrayToBlocks $ word8toWord32Array startBytes
-
-    --let round1ABCD :: [[Int]] = [[0, 1, 2, 3],
-    --                             [3, 0, 1, 2],
-    --                             [2, 3, 0, 1],
-    --                             [1, 2, 3, 0]]
-
-    --let round1KSI :: [[Int]] = [[ 0,   7,   1 ],  [ 1,  12,   2 ],  [ 2,  17,   3 ],  [ 3,  22,   4 ],
-    --                            [ 4,   7,   5 ],  [ 5,  12,   6 ],  [ 6,  17,   7 ],  [ 7,  22,   8 ],
-    --                            [ 8,   7,   9 ],  [ 9,  12,  10 ],  [10,  17,  11 ],  [11,  22,  12 ],
-    --                            [12,   7,  13 ],  [13,  12,  14 ],  [14,  17,  15 ],  [15,  22,  16 ]]
-
-    ----let digest  = auxRound startDigest (round1ABCD!!0) (blocks!!0) (round1KSI!!0)  auxF
-
     let digest = processIndex startDigest (blocks!!0) 0
     concatMap word32ToWord8Array digest

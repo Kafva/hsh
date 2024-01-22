@@ -82,22 +82,22 @@ main = do
     Log.info' "%s\n" $ show opts
 
     -- Read from stdin
-    input <- getContents
-    -- let input = ['a', 'b', 'c']
+    -- input <- getContents
+    -- let byteString :: ByteStringLazy.ByteString = Binary.encode input
+    -- let bytes :: [Word8] = ByteStringLazy.unpack byteString
 
-    let byteString :: ByteStringLazy.ByteString = Binary.encode input
-    let bytes :: [Word8] = ByteStringLazy.unpack byteString
+    let bytes :: [Word8] = [0x61, 0x62, 0x63, 0x0A] -- [a b c '\n']
 
     case algorithm opts of
         "md5"  -> do
             let digest = Md5.hash bytes
+            runReaderT (Log.debug' "raw input: %s" (word8ArrayToHexString bytes)) opts
+            runReaderT (Log.debug' "raw input length %d byte(s)" (length bytes)) opts
             runReaderT (Log.debug' "digest: %s" (word8ArrayToHexString digest)) opts
-            runReaderT (Log.debug' "input: %s" (word8ArrayToHexString bytes)) opts
-            runReaderT (Log.debug' "input length %d bit(s)" (8*length bytes)) opts
-            runReaderT (Log.debug' "digest length %d bit(s)" (8*length digest)) opts
+            runReaderT (Log.debug' "digest length %d byte(s)" (length digest)) opts
 
         "sha1" -> do
-            print $ Sha1.hash input
+            print $ Sha1.hash bytes
 
         alg ->
             Log.err' "Invalid algorithm: %s" alg
