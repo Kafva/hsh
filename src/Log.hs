@@ -1,17 +1,17 @@
-module Log (debug', info', err') where
+module Log (debug', info', err', debugPrintf) where
 
 import Control.Monad.Reader
 import Types(Config(..), ConfigMonad)
 import Text.Printf (printf, PrintfArg)
 
 debugPrintf :: String -> PrintfArg a => a -> String
-debugPrintf fmt = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt ++ "\n")
+debugPrintf fmt = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt)
 
 infoPrintf :: String -> PrintfArg a => a -> String
 infoPrintf fmt = printf ("\x1b[92mINFO\x1b[0m: " ++ fmt)
 
 errPrintf :: String -> PrintfArg a => a -> String
-errPrintf fmt = printf ("\x1b[91mERROR\x1b[0m: " ++ fmt ++ "\n")
+errPrintf fmt = printf ("\x1b[91mERROR\x1b[0m: " ++ fmt)
 
 debug' :: String -> PrintfArg a => a -> ConfigMonad()
 debug' fmt args = do

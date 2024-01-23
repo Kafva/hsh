@@ -2,11 +2,11 @@
 
 module Md5 (hash) where
 
-import qualified Data.ByteString.Lazy as ByteStringLazy
-import qualified Data.Binary as Binary
-
 import Data.Bits ((.&.), (.|.), complement, xor, shiftL, shiftR)
 import Data.Binary (Word8, Word32, Word64)
+import Debug.Trace
+import Log (debugPrintf)
+import Types (word8ArrayToHexArray)
 
 import Template (md5Table)
 
@@ -112,7 +112,7 @@ consumeBlock startDigest blk = do
 
 processIndexRecursive :: Digest -> Block -> Int -> Digest
 processIndexRecursive digest blk i
-    | i == 63 = processIndex digest blk 63
+    | i == 1 = processIndex digest blk 1
     | otherwise = zipWith (+) (processIndex digest blk i)
                               (processIndexRecursive digest blk (i + 1))
 
@@ -181,8 +181,8 @@ padZeroR bytes = do
     Hash algorithms map a variable length bit-string onto a fixed length
     bit-string, 128 bits (16 bytes) in the case of MD5.
 -}
-hash :: [Word8] -> [Word8]
-hash bytes = do
+hash :: [Word8] -> Bool -> [Word8]
+hash bytes debug = do
     -- (1) Add padding bits
     -- Append a '1' bit and fill with '0' until the bit-length of the
     -- input adheres to:
@@ -208,6 +208,9 @@ hash bytes = do
                        0x98badcfe,
                        0x10325476]
 
+    let startBytes = concatMap word32ToWord8Array startDigest
+    let msg = debugPrintf "start digest: %s" (word8ArrayToHexArray startBytes)
+
     -- (4) Process message
     -- The blocks are in multiples of 16 byte words, i.e. the digest can be
     -- evenly fit over it.
@@ -217,7 +220,7 @@ hash bytes = do
     --
     -- The digest buffer should be copied at the start of each round and the
     -- result added to the previous round result
-    let resultDigest = consumeBlock startDigest (blocks!!0)
+    let resultDigest = trace msg $ consumeBlock startDigest (blocks!!0)
     concatMap word32ToWord8Array resultDigest
 
 
