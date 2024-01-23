@@ -5,7 +5,7 @@ module Md5 (hash) where
 import Data.Bits ((.&.), (.|.), complement, xor, shiftL, shiftR)
 import Data.Binary (Word8, Word32, Word64)
 import Debug.Trace
-import Log (debugPrintf)
+import Log (debugPrintf, trace')
 import Types (word8ArrayToHexArray)
 
 import Template (md5Table)
@@ -220,7 +220,7 @@ hash bytes debug = do
     --
     -- The digest buffer should be copied at the start of each round and the
     -- result added to the previous round result
-    let resultDigest = trace msg $ consumeBlock startDigest (blocks!!0)
+    let resultDigest = trace' msg debug $ consumeBlock startDigest (blocks!!0)
     concatMap word32ToWord8Array resultDigest
 
 

@@ -1,8 +1,15 @@
-module Log (debug', info', err', debugPrintf) where
+module Log (debug', info', err', trace', debugPrintf) where
 
 import Control.Monad.Reader
 import Types(Config(..), ConfigMonad)
 import Text.Printf (printf, PrintfArg)
+import Debug.Trace
+
+trace' :: forall a. String -> Bool -> a -> a
+trace' str enabled a =
+    if enabled
+    then trace str $ a
+    else a
 
 debugPrintf :: String -> PrintfArg a => a -> String
 debugPrintf fmt = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt)
