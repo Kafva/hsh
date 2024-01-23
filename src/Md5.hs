@@ -57,19 +57,6 @@ auxI :: Word32 -> Word32 -> Word32 -> Word32
 auxI x y z = xor y (x .&. (complement z))
 
 
--- The indices move over the 64 slots in a block
--- The reference implementation iterates over i=1..64
--- Most others use i=0..63, these are indices in the md5Table.
---
--- X is the current block, an array of 16 Word32 values (64 bytes)
---  X[0..16]
---
--- T is the precomputed md5table, an array of 64 Word32 values
---  T[0..64]
---
---
-consumeBlock :: Digest -> Block -> Digest
-consumeBlock digest blk = digest
 
 
 digestNewA :: NewDigestSignature
@@ -104,6 +91,30 @@ auxRound a b c d auxFunction blk i t s =
 expandDigestArray :: (Word32 -> Word32 -> Word32 -> Word32 -> a) -> [Word32] -> a
 expandDigestArray f [a, b, c, d] = f a b c d
 expandDigestArray _ _ = error "Invalid argument: expected list with 4 items"
+
+
+-- The indices move over the 64 slots in a block
+-- The reference implementation iterates over i=1..64
+-- Most others use i=0..63, these are indices in the md5Table.
+--
+-- X is the current block, an array of 16 Word32 values (64 bytes)
+--  X[0..16]
+--
+-- T is the precomputed md5table, an array of 64 Word32 values
+--  T[0..64]
+--
+--
+consumeBlock :: Digest -> Block -> Digest
+consumeBlock startDigest blk = do
+    let resultDigest = processIndexRecursive startDigest blk 0
+    zipWith (+) startDigest resultDigest
+
+
+processIndexRecursive :: Digest -> Block -> Int -> Digest
+processIndexRecursive digest blk i
+    | i == 63 = processIndex digest blk 63
+    | otherwise = zipWith (+) (processIndex digest blk i)
+                              (processIndexRecursive digest blk (i + 1))
 
 processIndex :: Digest -> Block -> Int -> Digest
 processIndex digest blk i
@@ -202,5 +213,12 @@ hash bytes = do
     -- evenly fit over it.
     -- Run the round function with each auxiliary function as described in the
     -- RFC, updating one slot in the digest for each `auxRound` call.
-    let digest = processIndex startDigest (blocks!!0) 0
-    concatMap word32ToWord8Array digest
+    --
+    --
+    -- The digest buffer should be copied at the start of each round and the
+    -- result added to the previous round result
+    let resultDigest = consumeBlock startDigest (blocks!!0)
+    concatMap word32ToWord8Array resultDigest
+
+
+    -- concatMap word32ToWord8Array startDigest
