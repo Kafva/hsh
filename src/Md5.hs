@@ -108,12 +108,6 @@ expandDigestArray _ _ = error "Invalid argument: expected list with 4 items"
 -- but both should end up at the same result.
 -- https://crypto.stackexchange.com/a/6320/95946
 --
--- consumeBlock :: Digest -> Block -> Digest
--- consumeBlock startDigest blk = do
---     let resultDigest = processIndexRecursive startDigest blk 0
---     zipWith (+) startDigest resultDigest
-
-
 mod32add :: Word32 -> Word32 -> Word32
 mod32add a b = a + b
 
@@ -140,9 +134,9 @@ processIndex digest blk i
     -- (i) table index: range(0,15,1)   [0..64]
     | i < 16 = case (mod i 4) of
         0 -> expandDigestArray digestNewA digest blk auxF i 7  i
-        1 -> expandDigestArray digestNewB digest blk auxF i 12 i
+        1 -> expandDigestArray digestNewD digest blk auxF i 12 i
         2 -> expandDigestArray digestNewC digest blk auxF i 17 i
-        _ -> expandDigestArray digestNewD digest blk auxF i 22 i
+        _ -> expandDigestArray digestNewB digest blk auxF i 22 i
     -- Round 2
     -- (k) block index: range(1,15,5)   [0..16]
     -- (s) shift by:
@@ -153,21 +147,21 @@ processIndex digest blk i
     -- (i) table index: range(16,31,1)   [0..64]
     | i < 32 = case (mod i 4) of
         0 -> expandDigestArray digestNewA digest blk auxG (mod (1 + i*5) 16) 5   i
-        1 -> expandDigestArray digestNewB digest blk auxG (mod (1 + i*5) 16) 20  i
+        1 -> expandDigestArray digestNewD digest blk auxG (mod (1 + i*5) 16) 9   i
         2 -> expandDigestArray digestNewC digest blk auxG (mod (1 + i*5) 16) 14  i
-        _ -> expandDigestArray digestNewD digest blk auxG (mod (1 + i*5) 16) 9   i
+        _ -> expandDigestArray digestNewB digest blk auxG (mod (1 + i*5) 16) 20  i
     -- Round 3
     | i < 48 = case (mod i 4) of
         0 -> expandDigestArray digestNewA digest blk auxH (mod (5 + i*3) 16) 4   i
-        1 -> expandDigestArray digestNewB digest blk auxH (mod (5 + i*3) 16) 23  i
+        1 -> expandDigestArray digestNewD digest blk auxH (mod (5 + i*3) 16) 11  i
         2 -> expandDigestArray digestNewC digest blk auxH (mod (5 + i*3) 16) 16  i
-        _ -> expandDigestArray digestNewD digest blk auxH (mod (5 + i*3) 16) 11  i
+        _ -> expandDigestArray digestNewB digest blk auxH (mod (5 + i*3) 16) 23  i
     -- Round 4
     | otherwise = case (mod i 4) of
         0 -> expandDigestArray digestNewA digest blk auxI (mod (i*7) 16) 6   i
-        1 -> expandDigestArray digestNewB digest blk auxI (mod (i*7) 16) 10  i
+        1 -> expandDigestArray digestNewD digest blk auxI (mod (i*7) 16) 10  i
         2 -> expandDigestArray digestNewC digest blk auxI (mod (i*7) 16) 15  i
-        _ -> expandDigestArray digestNewD digest blk auxI (mod (i*7) 16) 21  i
+        _ -> expandDigestArray digestNewB digest blk auxI (mod (i*7) 16) 21  i
 
 
 word8ArrayToWord32 :: [Word8] -> Word32
@@ -234,10 +228,11 @@ hash bytes debug = do
     -- The RFC uses big-endian byte ordering, i.e. the MSB is at the highest
     -- address, i.e. 0x11223344 ---> [0x44 0x33 0x22 0x11]
     --
-    let startDigest = [0x6745_2301,
-                       0xefcd_ab89,
-                       0x98ba_dcfe,
-                       0x1032_5476]
+    let startDigest = trace' (debugPrintf "block(s): %d" (length blocks)) debug $
+                        [0x6745_2301,
+                         0xefcd_ab89,
+                         0x98ba_dcfe,
+                         0x1032_5476]
 
     let startBytes = concatMap word32ToWord8Array startDigest
     let msg = debugPrintf "start:  %s" (word8ArrayToHexArray startBytes)
