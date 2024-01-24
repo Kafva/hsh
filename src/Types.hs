@@ -38,7 +38,5 @@ word8ArrayToHexArray arr = do
 
 word8ArrayToHexString :: [Word8] -> String
 word8ArrayToHexString [] = ""
-word8ArrayToHexString arr = do
-    let s = concatMap (word8ToHexString "") arr
-    take (length s - 2) s
+word8ArrayToHexString arr = concatMap (word8ToHexString "") arr
 

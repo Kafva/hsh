@@ -4,7 +4,6 @@ module Md5 (hash) where
 
 import Data.Bits ((.&.), (.|.), complement, xor, shiftL, shiftR)
 import Data.Binary (Word8, Word32, Word64)
-import Debug.Trace
 import Log (debugPrintf, trace')
 import Types (word8ArrayToHexArray)
 
@@ -56,36 +55,38 @@ auxH x y z = xor (xor x y) z
 auxI :: Word32 -> Word32 -> Word32 -> Word32
 auxI x y z = xor y (x .&. (complement z))
 
-
-
-
 digestNewA :: NewDigestSignature
-digestNewA a b c d blk auxFunction i t s = do
-    let newA = auxRound a b c d auxFunction blk i t s
+digestNewA a b c d blk auxFunction k s i = do
+    let newA = auxRound a b c d auxFunction blk k s i
     [newA, b, c, d]
 
 digestNewB :: NewDigestSignature
-digestNewB a b c d blk auxFunction i t s = do
-    let newB = auxRound b c d a auxFunction blk i t s
+digestNewB a b c d blk auxFunction k s i = do
+    let newB = auxRound b c d a auxFunction blk k s i
     [a, newB, c, d]
 
 digestNewC :: NewDigestSignature
-digestNewC a b c d blk auxFunction i t s = do
-    let newC = auxRound c d a b auxFunction blk i t s
+digestNewC a b c d blk auxFunction k s i = do
+    let newC = auxRound c d a b auxFunction blk k s i
     [a, b, newC, d]
 
 digestNewD :: NewDigestSignature
-digestNewD a b c d blk auxFunction i t s = do
-    let newD = auxRound d a b c auxFunction blk i t s
+digestNewD a b c d blk auxFunction k s i = do
+    let newD = auxRound d a b c auxFunction blk k s i
     [a, b, c, newD]
 
+-- a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
 auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
             (Word32 -> Word32 -> Word32 -> Word32) ->
             Block ->
             Int -> Int -> Int ->
             Word32
-auxRound a b c d auxFunction blk i t s =
-    shiftL (b + (a + (auxFunction b c d) + (blk!!i) + $(md5Table)!!t)) s
+auxRound a b c d auxFunction blk k s i = do
+    shiftL (b + (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!i)) s
+    -- let sum1 = mod32add (blk!!k) ($(md5Table)!!i)
+    -- let sum2 = mod32add a (auxFunction b c d)
+    -- let sum3 = mod32add sum2 sum1
+    -- shiftL (mod32add b sum3) s
 
 -- Call `f` with each item in the provided array as a separate argument
 expandDigestArray :: (Word32 -> Word32 -> Word32 -> Word32 -> a) -> [Word32] -> a
@@ -94,8 +95,8 @@ expandDigestArray _ _ = error "Invalid argument: expected list with 4 items"
 
 
 -- The indices move over the 64 slots in a block
--- The reference implementation iterates over i=1..64
--- Most others use i=0..63, these are indices in the md5Table.
+-- The reference implementation iterates over k=1..64
+-- Most others use k=0..63, these are indices in the md5Table.
 --
 -- X is the current block, an array of 16 Word32 values (64 bytes)
 --  X[0..16]
@@ -103,40 +104,70 @@ expandDigestArray _ _ = error "Invalid argument: expected list with 4 items"
 -- T is the precomputed md5table, an array of 64 Word32 values
 --  T[0..64]
 --
+-- Note: the RFC description of rounds differs from the wikipedia description
+-- but both should end up at the same result.
+-- https://crypto.stackexchange.com/a/6320/95946
 --
-consumeBlock :: Digest -> Block -> Digest
-consumeBlock startDigest blk = do
-    let resultDigest = processIndexRecursive startDigest blk 0
-    zipWith (+) startDigest resultDigest
+-- consumeBlock :: Digest -> Block -> Digest
+-- consumeBlock startDigest blk = do
+--     let resultDigest = processIndexRecursive startDigest blk 0
+--     zipWith (+) startDigest resultDigest
 
+
+mod32add :: Word32 -> Word32 -> Word32
+mod32add a b = a + b
 
 processIndexRecursive :: Digest -> Block -> Int -> Digest
-processIndexRecursive digest blk i
-    | i == 1 = processIndex digest blk 1
-    | otherwise = zipWith (+) (processIndex digest blk i)
-                              (processIndexRecursive digest blk (i + 1))
+processIndexRecursive digest blk k
+    | k == 63 = processIndex digest blk 63
+    -- Add result from first round to the starting value
+    | k == 0 = zipWith (mod32add) digest $
+               zipWith (mod32add) (processIndex digest blk k)
+                           (processIndexRecursive digest blk (k + 1))
+    -- Add result from next round to the previous round
+    | otherwise = zipWith (mod32add) (processIndex digest blk k)
+                              (processIndexRecursive digest blk (k + 1))
 
 processIndex :: Digest -> Block -> Int -> Digest
 processIndex digest blk i
     -- Round 1
-    -- (i) block index: range(0,15,1)   [0..16]
-    -- (t) table index: range(0,15,1)   [0..64]
+    -- (k) block index: range(0,15,1)   [0..16]
     -- (s) shift by:
     --      newA (7)
     --      newB (12)
     --      newC (17)
     --      newD (22)
+    -- (i) table index: range(0,15,1)   [0..64]
     | i < 16 = case (mod i 4) of
-        0 -> expandDigestArray digestNewA digest blk auxF i i 7
-        1 -> expandDigestArray digestNewB digest blk auxF i i 12
-        2 -> expandDigestArray digestNewC digest blk auxF i i 17
-        _ -> expandDigestArray digestNewD digest blk auxF i i 22
+        0 -> expandDigestArray digestNewA digest blk auxF i 7  i
+        1 -> expandDigestArray digestNewB digest blk auxF i 12 i
+        2 -> expandDigestArray digestNewC digest blk auxF i 17 i
+        _ -> expandDigestArray digestNewD digest blk auxF i 22 i
     -- Round 2
-    | i < 32 = digest
+    -- (k) block index: range(1,15,5)   [0..16]
+    -- (s) shift by:
+    --      newA (5)
+    --      newB (20)
+    --      newC (14)
+    --      newD (9)
+    -- (i) table index: range(16,31,1)   [0..64]
+    | i < 32 = case (mod i 4) of
+        0 -> expandDigestArray digestNewA digest blk auxG (mod (1 + i*5) 16) 5   i
+        1 -> expandDigestArray digestNewB digest blk auxG (mod (1 + i*5) 16) 20  i
+        2 -> expandDigestArray digestNewC digest blk auxG (mod (1 + i*5) 16) 14  i
+        _ -> expandDigestArray digestNewD digest blk auxG (mod (1 + i*5) 16) 9   i
     -- Round 3
-    | i < 48 = digest
+    | i < 48 = case (mod i 4) of
+        0 -> expandDigestArray digestNewA digest blk auxH (mod (5 + i*3) 16) 4   i
+        1 -> expandDigestArray digestNewB digest blk auxH (mod (5 + i*3) 16) 23  i
+        2 -> expandDigestArray digestNewC digest blk auxH (mod (5 + i*3) 16) 16  i
+        _ -> expandDigestArray digestNewD digest blk auxH (mod (5 + i*3) 16) 11  i
     -- Round 4
-    | otherwise = digest
+    | otherwise = case (mod i 4) of
+        0 -> expandDigestArray digestNewA digest blk auxI (mod (i*7) 16) 6   i
+        1 -> expandDigestArray digestNewB digest blk auxI (mod (i*7) 16) 10  i
+        2 -> expandDigestArray digestNewC digest blk auxI (mod (i*7) 16) 15  i
+        _ -> expandDigestArray digestNewD digest blk auxI (mod (i*7) 16) 21  i
 
 
 word8ArrayToWord32 :: [Word8] -> Word32
@@ -203,13 +234,13 @@ hash bytes debug = do
     -- The RFC uses big-endian byte ordering, i.e. the MSB is at the highest
     -- address, i.e. 0x11223344 ---> [0x44 0x33 0x22 0x11]
     --
-    let startDigest = [0x67452301,
-                       0xefcdab89,
-                       0x98badcfe,
-                       0x10325476]
+    let startDigest = [0x6745_2301,
+                       0xefcd_ab89,
+                       0x98ba_dcfe,
+                       0x1032_5476]
 
     let startBytes = concatMap word32ToWord8Array startDigest
-    let msg = debugPrintf "start digest: %s" (word8ArrayToHexArray startBytes)
+    let msg = debugPrintf "start:  %s" (word8ArrayToHexArray startBytes)
 
     -- (4) Process message
     -- The blocks are in multiples of 16 byte words, i.e. the digest can be
@@ -220,8 +251,6 @@ hash bytes debug = do
     --
     -- The digest buffer should be copied at the start of each round and the
     -- result added to the previous round result
-    let resultDigest = trace' msg debug $ consumeBlock startDigest (blocks!!0)
+    let resultDigest = trace' msg debug $
+                       processIndexRecursive startDigest (blocks!!0) 0
     concatMap word32ToWord8Array resultDigest
-
-
-    -- concatMap word32ToWord8Array startDigest
