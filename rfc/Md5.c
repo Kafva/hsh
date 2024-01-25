@@ -37,8 +37,30 @@
  **********************************************************************
  */
 
+/* ** PATCHED ****************************************************** */
+#include <stdio.h>
+#include <stdint.h>
+
 /* typedef a 32 bit type */
-typedef unsigned long int UINT4;
+typedef uint32_t UINT4;
+
+static void dumpBytes(char *label, UINT4 *input, int count) {
+    printf("\033[33mRFC\033[0m: %s = [", label);
+    for (int i = 0; i < count; i++) {
+        printf("0x%02x, ", input[i] & 0xff);
+        printf("0x%02x, ", (input[i]>>8 ) & 0xff);
+        printf("0x%02x, ", (input[i]>>16) & 0xff);
+        printf("0x%02x", (input[i]>>24) & 0xff);
+
+        if (i != count - 1) {
+            printf(", ");
+        } else {
+            printf(" ");
+        }
+    }
+    printf("]\n");
+}
+/* ***************************************************************** */
 
 /* Data structure for MD5 (Message Digest) computation */
 typedef struct {
@@ -234,6 +256,7 @@ UINT4 *buf;
 UINT4 *in;
 {
   UINT4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
+  dumpBytes("start", buf, 4);
 
   /* Round 1 */
 #define S11 7
