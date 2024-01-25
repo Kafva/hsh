@@ -255,6 +255,7 @@ static void Transform (buf, in)
 UINT4 *buf;
 UINT4 *in;
 {
+  UINT4 _buf[4] = {0};
   UINT4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
   dumpBytes("start", buf, 4);
 
@@ -264,6 +265,11 @@ UINT4 *in;
 #define S13 17
 #define S14 22
   FF ( a, b, c, d, in[ 0], S11, 3614090360); /* 1 */
+  _buf[0] = a;
+  _buf[1] = b;
+  _buf[2] = c;
+  _buf[3] = d;
+  dumpBytes("round 1:0", _buf, 4);
   FF ( d, a, b, c, in[ 1], S12, 3905402710); /* 2 */
   FF ( c, d, a, b, in[ 2], S13,  606105819); /* 3 */
   FF ( b, c, d, a, in[ 3], S14, 3250441966); /* 4 */

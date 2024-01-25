@@ -2,7 +2,7 @@
 
 module Md5 (hash) where
 
-import Data.Bits ((.&.), (.|.), complement, xor, shiftL, shiftR)
+import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR)
 import Data.Binary (Word8, Word32, Word64)
 import Log (debugPrintf, trace')
 import Types (word8ArrayToHexArray)
@@ -23,36 +23,38 @@ type NewDigestSignature = Word32 -> Word32 -> Word32 -> Word32 ->
                           Int -> Int -> Int ->
                           Digest
 
+type AuxiliaryFunctionSignature = Word32 -> Word32 -> Word32 -> Word32
+
 word32ToWord8Array :: Word32 -> [Word8]
 word32ToWord8Array word = [fromIntegral word,
-                           fromIntegral (shiftR word 8),
-                           fromIntegral (shiftR word 16),
-                           fromIntegral (shiftR word 24)]
+                           fromIntegral (rotateR word 8),
+                           fromIntegral (rotateR word 16),
+                           fromIntegral (rotateR word 24)]
 
 word64ToWord8Array :: Word64 -> [Word8]
 word64ToWord8Array word = [fromIntegral word,
-                           fromIntegral (shiftR word 8),
-                           fromIntegral (shiftR word 16),
-                           fromIntegral (shiftR word 24),
-                           fromIntegral (shiftR word 32),
-                           fromIntegral (shiftR word 40),
-                           fromIntegral (shiftR word 48),
-                           fromIntegral (shiftR word 56)]
+                           fromIntegral (rotateR word 8),
+                           fromIntegral (rotateR word 16),
+                           fromIntegral (rotateR word 24),
+                           fromIntegral (rotateR word 32),
+                           fromIntegral (rotateR word 40),
+                           fromIntegral (rotateR word 48),
+                           fromIntegral (rotateR word 56)]
 
 {-
     Each of the auxiliary functions are defined to act over bits
     in each word and map 3 32-bit words onto 1.
 -}
-auxF :: Word32 -> Word32 -> Word32 -> Word32
+auxF :: AuxiliaryFunctionSignature
 auxF x y z = (x .&. y) .|. ((complement x) .&. z)
 
-auxG :: Word32 -> Word32 -> Word32 -> Word32
+auxG :: AuxiliaryFunctionSignature
 auxG x y z = (x .&. z) .|. (y .&. (complement z))
 
-auxH :: Word32 -> Word32 -> Word32 -> Word32
+auxH :: AuxiliaryFunctionSignature
 auxH x y z = xor (xor x y) z
 
-auxI :: Word32 -> Word32 -> Word32 -> Word32
+auxI :: AuxiliaryFunctionSignature
 auxI x y z = xor y (x .&. (complement z))
 
 digestNewA :: NewDigestSignature
@@ -77,16 +79,16 @@ digestNewD a b c d blk auxFunction k s i = do
 
 -- a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
 auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
-            (Word32 -> Word32 -> Word32 -> Word32) ->
+            (AuxiliaryFunctionSignature) ->
             Block ->
             Int -> Int -> Int ->
             Word32
 auxRound a b c d auxFunction blk k s i = do
-    shiftL (b + (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!i)) s
+    rotateL (b + (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!i)) s
     -- let sum1 = mod32add (blk!!k) ($(md5Table)!!i)
     -- let sum2 = mod32add a (auxFunction b c d)
     -- let sum3 = mod32add sum2 sum1
-    -- shiftL (mod32add b sum3) s
+    -- rotateL (mod32add b sum3) s
 
 -- Call `f` with each item in the provided array as a separate argument
 expandDigestArray :: (Word32 -> Word32 -> Word32 -> Word32 -> a) -> [Word32] -> a
@@ -113,7 +115,7 @@ mod32add a b = a + b
 
 processIndexRecursive :: Digest -> Block -> Int -> Digest
 processIndexRecursive digest blk k
-    | k == 63 = processIndex digest blk 63
+    | k == 1 = processIndex digest blk 1
     -- Add result from first round to the starting value
     | k == 0 = zipWith (mod32add) digest $
                zipWith (mod32add) (processIndex digest blk k)
@@ -121,6 +123,20 @@ processIndexRecursive digest blk k
     -- Add result from next round to the previous round
     | otherwise = zipWith (mod32add) (processIndex digest blk k)
                               (processIndexRecursive digest blk (k + 1))
+
+-- Helper to show the output from each step of processIndex
+traceRound :: (NewDigestSignature) ->
+              Digest ->
+              Block ->
+              (AuxiliaryFunctionSignature) ->
+              Int ->
+              Int ->
+              Int ->
+              Digest
+traceRound digestNewFunc digest blk auxFunc k s i  = do
+    let out = expandDigestArray digestNewFunc digest blk auxFunc k s i
+    let bytes = word8ArrayToHexArray $ concatMap word32ToWord8Array out
+    trace' (debugPrintf "round = %s" bytes) True $ out
 
 processIndex :: Digest -> Block -> Int -> Digest
 processIndex digest blk i
@@ -133,7 +149,7 @@ processIndex digest blk i
     --      newD (22)
     -- (i) table index: range(0,15,1)   [0..64]
     | i < 16 = case (mod i 4) of
-        0 -> expandDigestArray digestNewA digest blk auxF i 7  i
+        0 -> traceRound digestNewA digest blk auxF i 7 i
         1 -> expandDigestArray digestNewD digest blk auxF i 12 i
         2 -> expandDigestArray digestNewC digest blk auxF i 17 i
         _ -> expandDigestArray digestNewB digest blk auxF i 22 i
@@ -168,9 +184,9 @@ word8ArrayToWord32 :: [Word8] -> Word32
 word8ArrayToWord32 bytes =
     if length bytes /= 4
     then 0
-    else (shiftL (fromIntegral $ bytes!!0) 24) .|.
-         (shiftL (fromIntegral $ bytes!!1) 16) .|.
-         (shiftL (fromIntegral $ bytes!!2) 8) .|.
+    else (rotateL (fromIntegral $ bytes!!0) 24) .|.
+         (rotateL (fromIntegral $ bytes!!1) 16) .|.
+         (rotateL (fromIntegral $ bytes!!2) 8) .|.
          fromIntegral (bytes!!3)
 
 -- Split the given array of bytes into a list of 32 byte entries

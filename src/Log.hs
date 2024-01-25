@@ -12,7 +12,7 @@ trace' str enabled a =
     else a
 
 debugPrintf :: String -> PrintfArg a => a -> String
-debugPrintf fmt = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt)
+debugPrintf fmt args = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt) args
 
 infoPrintf :: String -> PrintfArg a => a -> String
 infoPrintf fmt = printf ("\x1b[92mINFO\x1b[0m: " ++ fmt)
