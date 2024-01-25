@@ -142,9 +142,7 @@ static unsigned char PADDING[64] = {
 /* FF, GG, HH, and II transformations for rounds 1, 2, 3, and 4 */
 /* Rotation is separate from addition to prevent recomputation */
 #define FF(a, b, c, d, x, s, ac) \
-  {(a) += F ((b), (c), (d)) + (x) + (UINT4)(ac); \
-   (a) = ROTATE_LEFT ((a), (s)); \
-   (a) += (b); \
+  {(a) += (x); \
   }
 #define GG(a, b, c, d, x, s, ac) \
   {(a) += G ((b), (c), (d)) + (x) + (UINT4)(ac); \
@@ -257,6 +255,7 @@ UINT4 *in;
 {
   UINT4 _buf[4] = {0};
   UINT4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
+  dumpBytes("input", in, 4);
   dumpBytes("start", buf, 4);
 
   /* Round 1 */
@@ -269,7 +268,7 @@ UINT4 *in;
   _buf[1] = b;
   _buf[2] = c;
   _buf[3] = d;
-  dumpBytes("round 1:0", _buf, 4);
+  dumpBytes("round", _buf, 4);
   FF ( d, a, b, c, in[ 1], S12, 3905402710); /* 2 */
   FF ( c, d, a, b, in[ 2], S13,  606105819); /* 3 */
   FF ( b, c, d, a, in[ 3], S14, 3250441966); /* 4 */

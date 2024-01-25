@@ -2,7 +2,7 @@
 
 module Md5 (hash) where
 
-import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR)
+import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR, rotateL)
 import Data.Binary (Word8, Word32, Word64)
 import Log (debugPrintf, trace')
 import Types (word8ArrayToHexArray)
@@ -84,7 +84,13 @@ auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
             Int -> Int -> Int ->
             Word32
 auxRound a b c d auxFunction blk k s i = do
-    rotateL (b + (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!i)) s
+    -- mod32add (mod32add a (auxFunction b c d))  (blk!!k)
+
+    a + blk!!k
+
+    -- let a2 = rotateL a1 s
+    -- mod32add b a2
+    -- b + (rotateL (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!i) s)
     -- let sum1 = mod32add (blk!!k) ($(md5Table)!!i)
     -- let sum2 = mod32add a (auxFunction b c d)
     -- let sum3 = mod32add sum2 sum1
@@ -244,7 +250,7 @@ hash bytes debug = do
     -- The RFC uses big-endian byte ordering, i.e. the MSB is at the highest
     -- address, i.e. 0x11223344 ---> [0x44 0x33 0x22 0x11]
     --
-    let startDigest = trace' (debugPrintf "block(s): %d" (length blocks)) debug $
+    let startDigest = trace' (debugPrintf "block(s): %d" (length blocks)) False $
                         [0x6745_2301,
                          0xefcd_ab89,
                          0x98ba_dcfe,
