@@ -255,8 +255,8 @@ UINT4 *in;
 {
   UINT4 _buf[4] = {0};
   UINT4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
-  dumpBytes("input", in, 4);
   dumpBytes("start", buf, 4);
+  dumpBytes("input", in, 4);
 
   /* Round 1 */
 #define S11 7

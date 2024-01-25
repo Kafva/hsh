@@ -92,7 +92,7 @@ main = do
         "md5"  -> do
             let digest = Md5.hash bytes (debug opts)
             -- runReaderT (Log.debug' "table: %s" $ show $(md5Table)) opts
-            runReaderT (Log.debug' "raw input: %s\n" (word8ArrayToHexArray bytes)) opts
+            -- runReaderT (Log.debug' "raw input: %s\n" (word8ArrayToHexArray bytes)) opts
             -- runReaderT (Log.debug' "raw input length %d byte(s)\n" (length bytes)) opts
             -- runReaderT (Log.debug' "output: %s\n" (word8ArrayToHexArray digest)) opts
             -- runReaderT (Log.debug' "output length %d byte(s)\n" (length digest)) opts

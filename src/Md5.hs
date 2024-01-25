@@ -86,7 +86,8 @@ auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
 auxRound a b c d auxFunction blk k s i = do
     -- mod32add (mod32add a (auxFunction b c d))  (blk!!k)
 
-    a + blk!!k
+    -- TODO: keep bytes concated in original order
+    (blk!!k)
 
     -- let a2 = rotateL a1 s
     -- mod32add b a2
@@ -230,36 +231,36 @@ padZeroR bytes = do
 -}
 hash :: [Word8] -> Bool -> [Word8]
 hash bytes debug = do
-    -- (1) Add padding bits
+    -- * Add padding bits
     -- Append a '1' bit and fill with '0' until the bit-length of the
     -- input adheres to:
     --     input % 512 == 448
     -- Or equivalently upon bytes:
     --     bytes % 64 == 56
-    --
-    -- (2) Append length
+
+    -- * Append length
     -- Append the 64 bit representation of the original length (in bits)
     let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
     let paddedBytes = (padZeroR (bytes ++ [0b1000_0000])) ++
                        word64ToWord8Array unpaddedBitCount
 
-    let blocks = word32ArrayToBlocks $ word8toWord32Array paddedBytes
+    let blocks = trace' (debugPrintf "input: %s" (word8ArrayToHexArray (take 16 paddedBytes))) True $
+                 word32ArrayToBlocks $ word8toWord32Array paddedBytes
 
-    -- (3) Set starting values
+    -- * Set starting values
     --
     -- The RFC uses big-endian byte ordering, i.e. the MSB is at the highest
     -- address, i.e. 0x11223344 ---> [0x44 0x33 0x22 0x11]
     --
-    let startDigest = trace' (debugPrintf "block(s): %d" (length blocks)) False $
-                        [0x6745_2301,
-                         0xefcd_ab89,
-                         0x98ba_dcfe,
-                         0x1032_5476]
+    let startDigest = [0x6745_2301,
+                       0xefcd_ab89,
+                       0x98ba_dcfe,
+                       0x1032_5476]
 
     let startBytes = concatMap word32ToWord8Array startDigest
     let msg = debugPrintf "start:  %s" (word8ArrayToHexArray startBytes)
 
-    -- (4) Process message
+    -- * Process message
     -- The blocks are in multiples of 16 byte words, i.e. the digest can be
     -- evenly fit over it.
     -- Run the round function with each auxiliary function as described in the
