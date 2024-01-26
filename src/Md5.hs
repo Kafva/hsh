@@ -84,18 +84,7 @@ auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
             Int -> Int -> Int ->
             Word32
 auxRound a b c d auxFunction blk k s i = do
-    -- mod32add (mod32add a (auxFunction b c d))  (blk!!k)
-
-    -- TODO: keep bytes concated in original order
-    (blk!!k)
-
-    -- let a2 = rotateL a1 s
-    -- mod32add b a2
-    -- b + (rotateL (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!i) s)
-    -- let sum1 = mod32add (blk!!k) ($(md5Table)!!i)
-    -- let sum2 = mod32add a (auxFunction b c d)
-    -- let sum3 = mod32add sum2 sum1
-    -- rotateL (mod32add b sum3) s
+    b + (rotateL (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!i) s)
 
 -- Call `f` with each item in the provided array as a separate argument
 expandDigestArray :: (Word32 -> Word32 -> Word32 -> Word32 -> a) -> [Word32] -> a
@@ -187,14 +176,17 @@ processIndex digest blk i
         _ -> expandDigestArray digestNewB digest blk auxI (mod (i*7) 16) 21  i
 
 
+-- Convert an array of 4 bytes into a Little-endian 16 byte word
+--   [0x44 0x33 0x22 0x11] ---> 0x11223344
 word8ArrayToWord32 :: [Word8] -> Word32
 word8ArrayToWord32 bytes =
     if length bytes /= 4
     then 0
-    else (rotateL (fromIntegral $ bytes!!0) 24) .|.
-         (rotateL (fromIntegral $ bytes!!1) 16) .|.
-         (rotateL (fromIntegral $ bytes!!2) 8) .|.
-         fromIntegral (bytes!!3)
+    else fromIntegral (bytes!!0) .|.
+         (rotateL (fromIntegral $ bytes!!1) 8) .|.
+         (rotateL (fromIntegral $ bytes!!2) 16) .|.
+         (rotateL (fromIntegral $ bytes!!3) 24)
+
 
 -- Split the given array of bytes into a list of 32 byte entries
 -- Returns an empty list if the list is not evenly divisible
@@ -249,8 +241,9 @@ hash bytes debug = do
 
     -- * Set starting values
     --
-    -- The RFC uses big-endian byte ordering, i.e. the MSB is at the highest
-    -- address, i.e. 0x11223344 ---> [0x44 0x33 0x22 0x11]
+    -- The RFC uses Little-endian byte ordering for words,
+    -- i.e. the LSB is at the lowest (first) address:
+    --      0x11223344 ---> [0x44 0x33 0x22 0x11]
     --
     let startDigest = [0x6745_2301,
                        0xefcd_ab89,

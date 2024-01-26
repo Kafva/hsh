@@ -16,8 +16,7 @@ import Data.Foldable (for_)
 import System.Exit (exitFailure, exitSuccess)
 import Control.Monad.Reader
 
-import qualified Data.ByteString.Lazy as ByteStringLazy
-import qualified Data.Binary as Binary
+import qualified Data.ByteString as B
 import Data.Word (Word8)
 
 defaultOptions :: Config
@@ -82,17 +81,15 @@ main = do
     Log.info' "%s\n" $ show opts
 
     -- Read from stdin
-    -- input <- getContents
-    -- let byteString :: ByteStringLazy.ByteString = Binary.encode input
-    -- let bytes :: [Word8] = ByteStringLazy.unpack byteString
+    input <- B.getContents
+    let bytes :: [Word8] = B.unpack input
 
-    let bytes :: [Word8] = [0x61, 0x62, 0x63, 0x0A] -- [a b c '\n']
+    runReaderT (Log.debug' "raw: %s\n" (word8ArrayToHexArray bytes)) opts
 
     case algorithm opts of
         "md5"  -> do
             let digest = Md5.hash bytes (debug opts)
             -- runReaderT (Log.debug' "table: %s" $ show $(md5Table)) opts
-            -- runReaderT (Log.debug' "raw input: %s\n" (word8ArrayToHexArray bytes)) opts
             -- runReaderT (Log.debug' "raw input length %d byte(s)\n" (length bytes)) opts
             -- runReaderT (Log.debug' "output: %s\n" (word8ArrayToHexArray digest)) opts
             -- runReaderT (Log.debug' "output length %d byte(s)\n" (length digest)) opts
