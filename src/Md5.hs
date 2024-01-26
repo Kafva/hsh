@@ -111,7 +111,7 @@ mod32add a b = a + b
 
 processIndexRecursive :: Digest -> Block -> Int -> Digest
 processIndexRecursive digest blk k
-    | k == 1 = processIndex digest blk 1
+    | k == 2 = processIndex digest blk 2
     -- Add result from first round to the starting value
     | k == 0 = zipWith (mod32add) digest $
                zipWith (mod32add) (processIndex digest blk k)
@@ -145,8 +145,8 @@ processIndex digest blk i
     --      newD (22)
     -- (i) table index: range(0,15,1)   [0..64]
     | i < 16 = case (mod i 4) of
-        0 -> traceRound digestNewA digest blk auxF i 7 i
-        1 -> expandDigestArray digestNewD digest blk auxF i 12 i
+        0 -> expandDigestArray digestNewA digest blk auxF i 7 i
+        1 -> traceRound digestNewD digest blk auxF i 12 i
         2 -> expandDigestArray digestNewC digest blk auxF i 17 i
         _ -> expandDigestArray digestNewB digest blk auxF i 22 i
     -- Round 2
