@@ -3,7 +3,7 @@
 module Md5 (hash) where
 
 import Template (md5Table)
-import Data.Bits ((.&.), (.|.), complement, xor, rotateR, rotateL)
+import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
 import Data.Binary (Word8, Word32, Word64)
 import Log (debugPrintf, trace')
 import Types (Md5Block, Md5Digest)
@@ -161,6 +161,16 @@ padZeroR bytes = do
     then padZeroR $ bytes ++ [0x0]
     else bytes
 
+
+processBlocks :: [Md5Block] -> Md5Digest -> Md5Digest
+processBlocks blocks digest
+    | length blocks == 0 = digest
+    | otherwise = do
+        let resultDigest = processIndexRecursive digest (blocks!!0) 0
+        -- The digest registers are updated *per* block
+        let updatedDigest = zipWith (+) digest resultDigest
+        processBlocks (drop 1 blocks) updatedDigest
+
 {-
     https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
     https://www.ietf.org/rfc/rfc1321.txt
@@ -177,7 +187,7 @@ hash bytes debug = do
                       -- * Append the original length (in bits) as a 64-bit value
                       (word64ToWord8Array unpaddedBitCount)
 
-    let blocks = trace' (debugPrintf "input: %s" (word8ArrayToHexArray (take 16 paddedBytes))) True $
+    let blocks = trace' (debugPrintf "input: %s" (word8ArrayToHexArray (take 16 paddedBytes))) debug $
                  word32ArrayToBlocks $ word8toWord32Array paddedBytes
 
     -- * Set starting values
@@ -201,7 +211,6 @@ hash bytes debug = do
     --
     -- The digest buffer should be copied at the start of each round and the
     -- result added to the previous round result
-    let resultDigest = trace' msg debug $
-                       processIndexRecursive startDigest (blocks!!0) 0
-    -- The resultDigest should be added to the startDigest, *updated* per block
-    concatMap word32ToWord8Array (zipWith (+) startDigest resultDigest)
+    let finalDigest = trace' msg debug $ processBlocks blocks startDigest
+
+    concatMap word32ToWord8Array finalDigest

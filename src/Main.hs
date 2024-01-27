@@ -79,7 +79,7 @@ main = do
 
     -- Apply default options
     opts <- foldl (>>=) (return defaultOptions) optionsFn
-    Log.info' "%s\n" $ show opts
+    runReaderT (Log.debug' "%s\n" (show opts)) opts
 
     -- Read from stdin
     input <- B.getContents
