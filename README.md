@@ -2,7 +2,11 @@
 Hash algorithm implementations
 
 ```bash
+# Run
 cabal run hsh -- --help
+
+# (Re)-install to ~/.local/bin
+cabal install --overwrite-policy=always
 
 # Debugging
 cat << EOF > .run.ghci
