@@ -162,7 +162,6 @@ hash :: [Word8] -> Reader Config [Word8]
 hash bytes = do
     -- * Pad the input to be a multiple of the block size (16 bytes)
     let paddedBytes = padInput bytes
-
     blocks <-  trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
                (word32ArrayToBlocks $ word8toWord32Array paddedBytes)
 

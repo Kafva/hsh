@@ -517,6 +517,11 @@ int main()
         dumpBytes("output", Message_Digest, 20);
     }
 
+    for (int i = 0; i < 20; i++) {
+        printf("%02x", Message_Digest[i]);
+    }
+    printf("\n");
+
     return 0;
 }
 

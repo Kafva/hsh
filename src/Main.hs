@@ -71,8 +71,6 @@ main = do
     let (optionsFn, _, errors) = getOpt RequireOrder options args
 
     -- Check for command line parsing errors
-    {- HLINT ignore "Redundant bracket" -}
-    {- HLINT ignore "Use null" -}
     when ((length errors) > 0) $ do
         for_ errors putStr
         exitFailure
@@ -94,7 +92,7 @@ main = do
 
         "sha1" -> do
             let digest = runReader (Sha1.hash bytes) opts
-            putStrLn $ word8ArrayToHexString digest 16
+            putStrLn $ word8ArrayToHexString digest 20
 
         alg ->
             putStrLn $ "Invalid algorithm: " ++ alg
