@@ -487,66 +487,36 @@ char *resultarray[4] =
     "DE A3 56 A2 CD DD 90 C7 A7 EC ED C5 EB B5 63 93 4F 46 04 52"
 };
 
+static void dumpBytes(char *label, uint8_t *input, int count) {
+    printf("\033[33mRFC\033[0m: %s = [", label);
+    for (int i = 0; i < count; i++) {
+        printf("0x%02x", input[i] & 0xff);
+        if (i != count - 1) {
+            printf(", ");
+        } else {
+            printf(" ");
+        }
+    }
+    printf("]\n");
+}
+
 int main()
 {
     SHA1Context sha;
     int i, j, err;
     uint8_t Message_Digest[20];
+    uint8_t data[20];
+    size_t cnt;
 
-    /*
-     *  Perform SHA-1 tests
-     */
-    for(j = 0; j < 4; ++j)
-    {
-        printf( "\nTest %d: %d, '%s'\n",
-                j+1,
-                repeatcount[j],
-                testarray[j]);
-
-        err = SHA1Reset(&sha);
-        if (err)
-        {
-            fprintf(stderr, "SHA1Reset Error %d.\n", err );
-            break;    /* out of for j loop */
-        }
-
-        for(i = 0; i < repeatcount[j]; ++i)
-        {
-            err = SHA1Input(&sha,
-                  (const unsigned char *) testarray[j],
-                  strlen(testarray[j]));
-            if (err)
-            {
-                fprintf(stderr, "SHA1Input Error %d.\n", err );
-                break;    /* out of for i loop */
-            }
-        }
-
-        err = SHA1Result(&sha, Message_Digest);
-        if (err)
-        {
-            fprintf(stderr,
-            "SHA1Result Error %d, could not compute message digest.\n",
-            err );
-        }
-        else
-        {
-            printf("\t");
-            for(i = 0; i < 20 ; ++i)
-            {
-                printf("%02X ", Message_Digest[i]);
-            }
-            printf("\n");
-        }
-        printf("Should match:\n");
-        printf("\t%s\n", resultarray[j]);
+    while ((cnt = fread (data, 1, 20, stdin)) != 0) {
+        (void)SHA1Reset(&sha);
+        (void)SHA1Input(&sha,
+              (const unsigned char *)data,
+              cnt);
+        (void)SHA1Result(&sha, Message_Digest);
+        dumpBytes("output", Message_Digest, 20);
     }
 
-    /* Test some error returns */
-    err = SHA1Input(&sha,(const unsigned char *) testarray[1], 1);
-    printf ("\nError %d. Should be %d.\n", err, shaStateError );
-    err = SHA1Reset(0);
-    printf ("\nError %d. Should be %d.\n", err, shaNull );
     return 0;
 }
 
