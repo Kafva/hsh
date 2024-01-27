@@ -4,10 +4,11 @@ module Util (
     word8toWord32Array,
     word32ToWord8Array,
     word32ArrayToBlocks,
-    word64ToWord8Array
+    word64ToWord8Array,
+    padInput
 ) where
 
-import Types (Md5Block)
+import Types (Block)
 import Data.Binary (Word8, Word32, Word64)
 import Data.Bits ((.|.), rotateR, rotateL)
 import Numeric (showHex)
@@ -76,7 +77,7 @@ word8toWord32Array arr = do
     else word8ArrayToWord32 (take 4 arr) : word8toWord32Array (drop 4 arr)
 
 
-word32ArrayToBlocks :: [Word32] -> [Md5Block]
+word32ArrayToBlocks :: [Word32] -> [Block]
 word32ArrayToBlocks [] = []
 word32ArrayToBlocks arr = do
     if mod (length arr) 16 /= 0
@@ -84,4 +85,26 @@ word32ArrayToBlocks arr = do
     else
         (take 16 arr)
         : word32ArrayToBlocks (drop 16 arr)
+
+{-
+ - SHA1 and MD5 use the same padding method.
+ -
+ - The input needs to be padded so that it can be evenly fit into
+ - 16 byte blocks. We pad by appending one bit ('1') followed by zeroes
+ - until we are 8 bytes (64-bit) short from filling an entire block.
+ - The final 8 bytes are filled with the 64-bit representation of the original
+ - length (in bits) of the message.
+ -
+ -}
+padInput :: [Word8] -> [Word8]
+padInput bytes = do
+    let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
+    _padInput (bytes ++ [0b1000_0000]) ++
+              (word64ToWord8Array unpaddedBitCount)
+
+_padInput :: [Word8] -> [Word8]
+_padInput bytes = do
+    if (mod (length bytes) 64) /= (64-8)
+    then _padInput $ bytes ++ [0x0]
+    else bytes
 

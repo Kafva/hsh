@@ -4,7 +4,7 @@ module Types (
     Config(..), -- constructor
     ConfigMonad,
     Md5Digest,
-    Md5Block
+    Block
 ) where
 
 import Control.Monad.Reader
@@ -21,5 +21,5 @@ data Config = Config {
 } deriving Show
 
 type Md5Digest = [Word32] -- 4 slots
-type Md5Block = [Word32]  -- 16 slots
+type Block = [Word32]  -- 16 slots
 

@@ -5,18 +5,18 @@ module Md5 (hash) where
 import Control.Monad.Reader
 import Template (md5Table)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
-import Data.Binary (Word8, Word32, Word64)
+import Data.Binary (Word8, Word32)
 import Log (trace', trace'')
-import Types (Config, Md5Block, Md5Digest)
+import Types (Config, Block, Md5Digest)
 import Util (word8ArrayToHexArray,
              word8toWord32Array,
              word32ToWord8Array,
              word32ArrayToBlocks,
-             word64ToWord8Array)
+             padInput)
 
 -- Type signature for each `digestNew` function
 type NewDigestSignature = Word32 -> Word32 -> Word32 -> Word32 ->
-                          Md5Block ->
+                          Block ->
                           (Word32 -> Word32 -> Word32 -> Word32) ->
                           Int -> Int -> Int ->
                           Reader Config Md5Digest
@@ -73,7 +73,7 @@ digestNewD a b c d blk auxFunction k s i = do
  -}
 auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
             (AuxiliaryFunctionSignature) ->
-            Md5Block ->
+            Block ->
             Int -> Int -> Int ->
             Word32
 auxRound a b c d auxFunction blk k s i = do
@@ -92,7 +92,7 @@ getK i | i < 16 = i
        | i < 48 = mod (5 + i*3) 16
        | otherwise = mod (i*7) 16
 
-processIndex :: Md5Digest -> Md5Block -> Int -> Reader Config Md5Digest
+processIndex :: Md5Digest -> Block -> Int -> Reader Config Md5Digest
 processIndex digest blk i
     -- Round 1
     -- (k) block index: range(0,15,1)   [0..16]
@@ -133,7 +133,7 @@ processIndex digest blk i
         2 -> expandDigestArray digestNewC digest blk auxI (getK i) 15  i
         _ -> expandDigestArray digestNewB digest blk auxI (getK i) 21  i
 
-processIndexRecursive :: Md5Digest -> Md5Block -> Int -> Reader Config Md5Digest
+processIndexRecursive :: Md5Digest -> Block -> Int -> Reader Config Md5Digest
 processIndexRecursive digest blk idx
   | idx == 63 = processIndex digest blk idx
   | otherwise = do
@@ -141,7 +141,7 @@ processIndexRecursive digest blk idx
     processIndexRecursive newDigest blk (idx + 1)
 
 
-processBlocks :: [Md5Block] -> Md5Digest -> Reader Config Md5Digest
+processBlocks :: [Block] -> Md5Digest -> Reader Config Md5Digest
 processBlocks blocks digest
     | length blocks == 0 = return digest
     | otherwise = do
@@ -149,19 +149,6 @@ processBlocks blocks digest
         -- The digest registers are updated *per* block
         let updatedDigest = zipWith (+) digest resultDigest
         processBlocks (drop 1 blocks) updatedDigest
-
-{-
- - Append a '1' bit and fill with '0' until the bit-length of the
- - input adheres to:
- -     input % 512 == 448
- - Or equivalently upon bytes:
- -     bytes % 64 == 56
- -}
-padZeroR :: [Word8] -> [Word8]
-padZeroR bytes = do
-    if (mod (length bytes) 64) /= 56
-    then padZeroR $ bytes ++ [0x0]
-    else bytes
 
 {-
  - https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
@@ -173,12 +160,8 @@ padZeroR bytes = do
  -}
 hash :: [Word8] -> Reader Config [Word8]
 hash bytes = do
-    let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
-
-                      -- * Add padding bits
-    let paddedBytes = (padZeroR (bytes ++ [0b1000_0000])) ++
-                      -- * Append the original length (in bits) as a 64-bit value
-                      (word64ToWord8Array unpaddedBitCount)
+    -- * Pad the input to be a multiple of the block size (16 bytes)
+    let paddedBytes = padInput bytes
 
     blocks <-  trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
                (word32ArrayToBlocks $ word8toWord32Array paddedBytes)
