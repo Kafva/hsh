@@ -22,10 +22,6 @@ type NewDigestSignature = Word32 -> Word32 -> Word32 -> Word32 ->
 
 type AuxiliaryFunctionSignature = Word32 -> Word32 -> Word32 -> Word32
 
-{-
-    Each of the auxiliary functions are defined to act over bits
-    in each word and map 3 32-bit words onto 1.
--}
 auxF :: AuxiliaryFunctionSignature
 auxF x y z = (x .&. y) .|. ((complement x) .&. z)
 
@@ -59,14 +55,13 @@ digestNewD a b c d blk auxFunction k s i = do
     [a, b, c, newD]
 
 {-
-    X is the current block, an array of 16 Word32 values (64 bytes)
-     X[0..16]
-
-    T is the precomputed md5table, an array of 64 Word32 values
-     T[0..64]
-
-    a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
--}
+ - a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
+ -
+ - X is the current block, an array of 16 Word32 values (64 bytes)
+ -      X[0..16]
+ - T is the precomputed md5table, an array of 64 Word32 values
+ -     T[0..64]
+ -}
 auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
             (AuxiliaryFunctionSignature) ->
             Md5Block ->
@@ -151,12 +146,12 @@ processBlocks blocks digest
         processBlocks (drop 1 blocks) updatedDigest
 
 {-
-    Append a '1' bit and fill with '0' until the bit-length of the
-    input adheres to:
-        input % 512 == 448
-    Or equivalently upon bytes:
-        bytes % 64 == 56
--}
+ - Append a '1' bit and fill with '0' until the bit-length of the
+ - input adheres to:
+ -     input % 512 == 448
+ - Or equivalently upon bytes:
+ -     bytes % 64 == 56
+ -}
 padZeroR :: [Word8] -> [Word8]
 padZeroR bytes = do
     if (mod (length bytes) 64) /= 56
@@ -164,13 +159,13 @@ padZeroR bytes = do
     else bytes
 
 {-
-    https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
-    https://www.ietf.org/rfc/rfc1321.txt
-
-    Note: the RFC description of rounds differs from the wikipedia description
-    but both are valid.
-    https://crypto.stackexchange.com/a/6320/95946
--}
+ - https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
+ - https://www.ietf.org/rfc/rfc1321.txt
+ -
+ - Note: the RFC description of rounds differs from the wikipedia description
+ - but both are valid.
+ - https://crypto.stackexchange.com/a/6320/95946
+ -}
 hash :: [Word8] -> Bool -> [Word8]
 hash bytes debug = do
     let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
