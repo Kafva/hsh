@@ -55,7 +55,7 @@ auxH :: AuxiliaryFunctionSignature
 auxH x y z = xor (xor x y) z
 
 auxI :: AuxiliaryFunctionSignature
-auxI x y z = xor y (x .&. (complement z))
+auxI x y z = xor y (x .|. (complement z))
 
 digestNewA :: NewDigestSignature
 digestNewA a b c d blk auxFunction k s i = do
@@ -138,7 +138,7 @@ processIndex digest blk i
     -- (i) table index: range(0,15,1)   [0..64]
     | i < 16 = case (mod i 4) of
         0 -> expandDigestArray digestNewA digest blk auxF i 7 i
-        1 -> traceRound digestNewD digest blk auxF i 12 i
+        1 -> expandDigestArray digestNewD digest blk auxF i 12 i
         2 -> expandDigestArray digestNewC digest blk auxF i 17 i
         _ -> expandDigestArray digestNewB digest blk auxF i 22 i
     -- Round 2

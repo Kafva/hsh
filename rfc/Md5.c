@@ -267,11 +267,6 @@ UINT4 *in;
 #define S14 22
   FF ( a, b, c, d, in[ 0], S11, 3614090360); /* 1 */
   FF ( d, a, b, c, in[ 1], S12, 3905402710); /* 2 */
-  _buf[0] = a;
-  _buf[1] = b;
-  _buf[2] = c;
-  _buf[3] = d;
-  dumpBytes("round", _buf, 4);
   FF ( c, d, a, b, in[ 2], S13,  606105819); /* 3 */
   FF ( b, c, d, a, in[ 3], S14, 3250441966); /* 4 */
   FF ( a, b, c, d, in[ 4], S11, 4118548399); /* 5 */
@@ -337,6 +332,11 @@ UINT4 *in;
 #define S43 15
 #define S44 21
   II ( a, b, c, d, in[ 0], S41, 4096336452); /* 49 */
+  _buf[0] = a;
+  _buf[1] = b;
+  _buf[2] = c;
+  _buf[3] = d;
+  dumpBytes("round", _buf, 4);
   II ( d, a, b, c, in[ 7], S42, 1126891415); /* 50 */
   II ( c, d, a, b, in[14], S43, 2878612391); /* 51 */
   II ( b, c, d, a, in[ 5], S44, 4237533241); /* 52 */
