@@ -64,6 +64,12 @@ options = [
         "Select algorithm [md5,sha1]"
     ]
 
+
+readMe :: Int -> Reader Config String
+readMe number = do
+    cfg <- ask
+    return (algorithm cfg ++ (show number))
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -81,27 +87,29 @@ main = do
     opts <- foldl (>>=) (return defaultOptions) optionsFn
     runReaderT (Log.debug' "%s\n" (show opts)) opts
 
+    let _ = runReaderT (readMe 77) opts
+
     -- Read from stdin
     input <- B.getContents
     let bytes :: [Word8] = B.unpack input
 
-    runReaderT (Log.debug' "raw: %s\n" (word8ArrayToHexArray bytes)) opts
+    runReaderT (Log.debug' "raw: %s\n" (word8ArrayToHexArray bytes 64)) opts
 
     case algorithm opts of
         "md5"  -> do
-            let digest = Md5.hash bytes (debug opts)
+            let digest = runReader (Md5.hash bytes) opts
             -- runReaderT (Log.debug' "table: %s" $ show $(md5Table)) opts
             -- runReaderT (Log.debug' "raw input length %d byte(s)\n" (length bytes)) opts
             -- runReaderT (Log.debug' "output: %s\n" (word8ArrayToHexArray digest)) opts
             -- runReaderT (Log.debug' "output length %d byte(s)\n" (length digest)) opts
 
-            putStrLn $ word8ArrayToHexString digest
+            putStrLn $ word8ArrayToHexString digest 16
 
         "sha1" -> do
             print $ Sha1.hash bytes
 
         alg ->
-            Log.err' "Invalid algorithm: %s" alg
+            putStrLn $ "Invalid algorithm: " ++ alg
 
     exitSuccess
 

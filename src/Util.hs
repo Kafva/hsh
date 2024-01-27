@@ -20,15 +20,21 @@ word8ToHexString prefix w = do
     then prefix ++ "0" ++ hexValue
     else prefix ++ hexValue
 
-word8ArrayToHexArray :: [Word8] -> String
-word8ArrayToHexArray [] = "[]"
-word8ArrayToHexArray arr = do
-    let s = concatMap ((++ ", ") . word8ToHexString "0x") arr
-    "[" ++ take (length s - 2) s ++ "]"
+word8ArrayToHexArray :: [Word8] -> Int -> String
+word8ArrayToHexArray [] _ = "[]"
+word8ArrayToHexArray arr maxlen = do
+    let s = concatMap ((++ ", ") . word8ToHexString "0x")
+                      (take maxlen arr)
+    let suffix = if (length arr) <= maxlen
+                    then ""
+                    else " ... "
+    "[" ++ take (length s - 2) s ++ suffix ++ "]"
 
-word8ArrayToHexString :: [Word8] -> String
-word8ArrayToHexString [] = ""
-word8ArrayToHexString arr = concatMap (word8ToHexString "") arr
+word8ArrayToHexString :: [Word8] -> Int -> String
+word8ArrayToHexString [] _ = ""
+word8ArrayToHexString arr maxlen
+    | length arr <= maxlen = concatMap (word8ToHexString "") arr
+    | otherwise = concatMap (word8ToHexString "") (take maxlen arr) ++ "..."
 
 
 word32ToWord8Array :: Word32 -> [Word8]

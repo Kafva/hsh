@@ -2,11 +2,12 @@
 
 module Md5 (hash) where
 
+import Control.Monad.Reader
 import Template (md5Table)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
 import Data.Binary (Word8, Word32, Word64)
-import Log (debugPrintf, trace')
-import Types (Md5Block, Md5Digest)
+import Log (trace')
+import Types (Config, Config(..), Md5Block, Md5Digest)
 import Util (word8ArrayToHexArray,
              word8toWord32Array,
              word32ToWord8Array,
@@ -18,7 +19,7 @@ type NewDigestSignature = Word32 -> Word32 -> Word32 -> Word32 ->
                           Md5Block ->
                           (Word32 -> Word32 -> Word32 -> Word32) ->
                           Int -> Int -> Int ->
-                          Md5Digest
+                          Reader Config Md5Digest
 
 type AuxiliaryFunctionSignature = Word32 -> Word32 -> Word32 -> Word32
 
@@ -37,22 +38,22 @@ auxI x y z = xor y (x .|. (complement z))
 digestNewA :: NewDigestSignature
 digestNewA a b c d blk auxFunction k s i = do
     let newA = auxRound a b c d auxFunction blk k s i
-    [newA, b, c, d]
+    return [newA, b, c, d]
 
 digestNewB :: NewDigestSignature
 digestNewB a b c d blk auxFunction k s i = do
     let newB = auxRound b c d a auxFunction blk k s i
-    [a, newB, c, d]
+    return [a, newB, c, d]
 
 digestNewC :: NewDigestSignature
 digestNewC a b c d blk auxFunction k s i = do
     let newC = auxRound c d a b auxFunction blk k s i
-    [a, b, newC, d]
+    return [a, b, newC, d]
 
 digestNewD :: NewDigestSignature
 digestNewD a b c d blk auxFunction k s i = do
     let newD = auxRound d a b c auxFunction blk k s i
-    [a, b, c, newD]
+    return [a, b, c, newD]
 
 {-
  - a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
@@ -71,25 +72,27 @@ auxRound a b c d auxFunction blk k s i = do
     b + (rotateL (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!i) s)
 
 -- Helper to show the output from each step of processIndex
-traceRound :: (NewDigestSignature) ->
-              Md5Digest ->
-              Md5Block ->
-              (AuxiliaryFunctionSignature) ->
-              Int ->
-              Int ->
-              Int ->
-              Md5Digest
-traceRound digestNewFunc digest blk auxFunc k s i  = do
-    let out = expandDigestArray digestNewFunc digest blk auxFunc k s i
-    let bytes = word8ArrayToHexArray $ concatMap word32ToWord8Array out
-    trace' (debugPrintf "round = %s" bytes) True $ out
+-- traceRound :: (NewDigestSignature) ->
+--               Md5Digest ->
+--               Md5Block ->
+--               (AuxiliaryFunctionSignature) ->
+--               Int ->
+--               Int ->
+--               Int ->
+--               Reader Config Md5Digest
+-- traceRound digestNewFunc digest blk auxFunc k s i  = do
+--     out <- expandDigestArray digestNewFunc digest blk auxFunc k s i
+--     let bytes = word8ArrayToHexArray $ concatMap word32ToWord8Array out
+--     trace' "round = %s" bytes $ out
 
 -- Call `f` with each item in the provided array as a separate argument
-expandDigestArray :: (Word32 -> Word32 -> Word32 -> Word32 -> a) -> [Word32] -> a
+expandDigestArray :: (Word32 -> Word32 -> Word32 -> Word32 -> a) ->
+                     [Word32] ->
+                     a
 expandDigestArray f [a, b, c, d] = f a b c d
 expandDigestArray _ _ = error "Invalid argument: expected list with 4 items"
 
-processIndex :: Md5Digest -> Md5Block -> Int -> Md5Digest
+processIndex :: Md5Digest -> Md5Block -> Int -> Reader Config Md5Digest
 processIndex digest blk i
     -- Round 1
     -- (k) block index: range(0,15,1)   [0..16]
@@ -130,17 +133,19 @@ processIndex digest blk i
         2 -> expandDigestArray digestNewC digest blk auxI (mod (i*7) 16) 15  i
         _ -> expandDigestArray digestNewB digest blk auxI (mod (i*7) 16) 21  i
 
-processIndexRecursive :: Md5Digest -> Md5Block -> Int -> Md5Digest
+processIndexRecursive :: Md5Digest -> Md5Block -> Int -> Reader Config Md5Digest
 processIndexRecursive digest blk idx
   | idx == 63 = processIndex digest blk idx
-  | otherwise = processIndexRecursive (processIndex digest blk idx) blk (idx + 1)
+  | otherwise = do
+    newDigest <- processIndex digest blk idx
+    processIndexRecursive newDigest blk (idx + 1)
 
 
-processBlocks :: [Md5Block] -> Md5Digest -> Md5Digest
+processBlocks :: [Md5Block] -> Md5Digest -> Reader Config Md5Digest
 processBlocks blocks digest
-    | length blocks == 0 = digest
+    | length blocks == 0 = return digest
     | otherwise = do
-        let resultDigest = processIndexRecursive digest (blocks!!0) 0
+        resultDigest <- processIndexRecursive digest (blocks!!0) 0
         -- The digest registers are updated *per* block
         let updatedDigest = zipWith (+) digest resultDigest
         processBlocks (drop 1 blocks) updatedDigest
@@ -166,8 +171,8 @@ padZeroR bytes = do
  - but both are valid.
  - https://crypto.stackexchange.com/a/6320/95946
  -}
-hash :: [Word8] -> Bool -> [Word8]
-hash bytes debug = do
+hash :: [Word8] -> Reader Config [Word8]
+hash bytes = do
     let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
 
                       -- * Add padding bits
@@ -175,8 +180,8 @@ hash bytes debug = do
                       -- * Append the original length (in bits) as a 64-bit value
                       (word64ToWord8Array unpaddedBitCount)
 
-    let blocks = trace' (debugPrintf "input: %s" (word8ArrayToHexArray (take 16 paddedBytes))) debug $
-                 word32ArrayToBlocks $ word8toWord32Array paddedBytes
+    blocks <-  trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
+               (word32ArrayToBlocks $ word8toWord32Array paddedBytes)
 
     -- * Set starting values
     -- The RFC uses Little-endian byte ordering for words,
@@ -188,17 +193,9 @@ hash bytes debug = do
                        0x98ba_dcfe,
                        0x1032_5476]
 
-    let startBytes = concatMap word32ToWord8Array startDigest
-    let msg = debugPrintf "start:  %s" (word8ArrayToHexArray startBytes)
-
     -- * Process message
-    -- The blocks are in multiples of 16 byte words, i.e. the digest can be
-    -- evenly fit over it.
     -- Run the round function with each auxiliary function as described in the
     -- RFC, updating one slot in the digest for each `auxRound` call.
-    --
-    -- The digest buffer should be copied at the start of each round and the
-    -- result added to the previous round result
-    let finalDigest = trace' msg debug $ processBlocks blocks startDigest
+    finalDigest <- processBlocks blocks startDigest
 
-    concatMap word32ToWord8Array finalDigest
+    return $ concatMap word32ToWord8Array finalDigest
