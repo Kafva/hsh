@@ -106,19 +106,11 @@ expandDigestArray _ _ = error "Invalid argument: expected list with 4 items"
 -- but both should end up at the same result.
 -- https://crypto.stackexchange.com/a/6320/95946
 --
-mod32add :: Word32 -> Word32 -> Word32
-mod32add a b = a + b
-
 processIndexRecursive :: Digest -> Block -> Int -> Digest
-processIndexRecursive digest blk k
-    | k == 2 = processIndex digest blk 2
-    -- Add result from first round to the starting value
-    | k == 0 = zipWith (mod32add) digest $
-               zipWith (mod32add) (processIndex digest blk k)
-                           (processIndexRecursive digest blk (k + 1))
-    -- Add result from next round to the previous round
-    | otherwise = zipWith (mod32add) (processIndex digest blk k)
-                              (processIndexRecursive digest blk (k + 1))
+processIndexRecursive digest blk idx
+  | idx == 63 = processIndex digest blk idx
+  | otherwise = processIndexRecursive (processIndex digest blk idx) blk (idx + 1)
+
 
 -- Helper to show the output from each step of processIndex
 traceRound :: (NewDigestSignature) ->
@@ -264,4 +256,5 @@ hash bytes debug = do
     -- result added to the previous round result
     let resultDigest = trace' msg debug $
                        processIndexRecursive startDigest (blocks!!0) 0
-    concatMap word32ToWord8Array resultDigest
+    -- The resultDigest should be added to the startDigest, *updated* per block
+    concatMap word32ToWord8Array (zipWith (+) startDigest resultDigest)
