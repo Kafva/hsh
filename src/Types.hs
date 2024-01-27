@@ -20,10 +20,6 @@ data Config = Config {
     algorithm :: String
 } deriving Show
 
-{-
-    The output digest is comprised of 4 32-bit words (16 bytes)
-    Field names: https://wiki.haskell.org/Name_clashes_in_record_fields
--}
 type Md5Digest = [Word32] -- 4 slots
 type Md5Block = [Word32]  -- 16 slots
 

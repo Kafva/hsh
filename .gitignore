@@ -3,6 +3,7 @@
 /.*.ghci
 /hsh
 /md5
+/sha1
 
 
 # Haskell

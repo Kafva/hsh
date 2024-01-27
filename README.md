@@ -1,5 +1,5 @@
 # hsh
-Basic implementation of md5. Works but the performance is very not good, debug
+Basic implementation of md5 and sha1. The performance is very not good, debug
 logs for each step can be printed with `-d`.
 
 ```bash
