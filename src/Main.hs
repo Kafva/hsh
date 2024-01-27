@@ -5,7 +5,8 @@ module Main (main) where
 import Md5
 import Sha1
 import Template
-import Types (Config(..), word8ArrayToHexString, word8ArrayToHexArray)
+import Types (Config(..))
+import Util (word8ArrayToHexString, word8ArrayToHexArray)
 import qualified Log
 
 import GHC.Base (when)

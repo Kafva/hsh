@@ -41,6 +41,7 @@ executable hsh
                       Template
                       Types
                       Log
+                      Util
     build-depends:    base ^>=4.19.0.0,
                       bytestring,
                       binary,

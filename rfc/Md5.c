@@ -257,8 +257,8 @@ UINT4 *in;
 {
   UINT4 _buf[4] = {0};
   UINT4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
-  dumpBytes("start", buf, 4);
-  dumpBytes("input", in, 4);
+  /* dumpBytes("start", buf, 4); */
+  /* dumpBytes("input", in, 4); */
 
   /* Round 1 */
 #define S11 7
@@ -332,11 +332,11 @@ UINT4 *in;
 #define S43 15
 #define S44 21
   II ( a, b, c, d, in[ 0], S41, 4096336452); /* 49 */
-  _buf[0] = a;
-  _buf[1] = b;
-  _buf[2] = c;
-  _buf[3] = d;
-  dumpBytes("round", _buf, 4);
+  /* _buf[0] = a; */
+  /* _buf[1] = b; */
+  /* _buf[2] = c; */
+  /* _buf[3] = d; */
+  /* dumpBytes("round", _buf, 4); */
   II ( d, a, b, c, in[ 7], S42, 1126891415); /* 50 */
   II ( c, d, a, b, in[14], S43, 2878612391); /* 51 */
   II ( b, c, d, a, in[ 5], S44, 4237533241); /* 52 */

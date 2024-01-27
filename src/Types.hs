@@ -3,15 +3,12 @@
 module Types (
     Config(..), -- constructor
     ConfigMonad,
-    word8ArrayToHexArray,
-    word8ArrayToHexString,
+    Md5Digest,
+    Md5Block
 ) where
 
 import Control.Monad.Reader
-import Data.Binary (Word8)
-
-import Numeric (showHex)
-import Data.Char(toLower)
+import Data.Binary (Word32)
 
 -- A Monad stack that allows us to run both IO and read from the Config
 type ConfigMonad a = ReaderT Config IO a
@@ -23,20 +20,10 @@ data Config = Config {
     algorithm :: String
 } deriving Show
 
-word8ToHexString :: String -> Word8 -> String
-word8ToHexString prefix w = do
-    let hexValue = map toLower (showHex w "")
-    if length hexValue == 1
-    then prefix ++ "0" ++ hexValue
-    else prefix ++ hexValue
-
-word8ArrayToHexArray :: [Word8] -> String
-word8ArrayToHexArray [] = "[]"
-word8ArrayToHexArray arr = do
-    let s = concatMap ((++ ", ") . word8ToHexString "0x") arr
-    "[" ++ take (length s - 2) s ++ "]"
-
-word8ArrayToHexString :: [Word8] -> String
-word8ArrayToHexString [] = ""
-word8ArrayToHexString arr = concatMap (word8ToHexString "") arr
+{-
+    The output digest is comprised of 4 32-bit words (16 bytes)
+    Field names: https://wiki.haskell.org/Name_clashes_in_record_fields
+-}
+type Md5Digest = [Word32] -- 4 slots
+type Md5Block = [Word32]  -- 16 slots
 
