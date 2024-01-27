@@ -58,7 +58,15 @@ digestNewD a b c d blk auxFunction k s i = do
     let newD = auxRound d a b c auxFunction blk k s i
     [a, b, c, newD]
 
--- a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
+{-
+    X is the current block, an array of 16 Word32 values (64 bytes)
+     X[0..16]
+
+    T is the precomputed md5table, an array of 64 Word32 values
+     T[0..64]
+
+    a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
+-}
 auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
             (AuxiliaryFunctionSignature) ->
             Md5Block ->
@@ -66,32 +74,6 @@ auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
             Word32
 auxRound a b c d auxFunction blk k s i = do
     b + (rotateL (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!i) s)
-
--- Call `f` with each item in the provided array as a separate argument
-expandDigestArray :: (Word32 -> Word32 -> Word32 -> Word32 -> a) -> [Word32] -> a
-expandDigestArray f [a, b, c, d] = f a b c d
-expandDigestArray _ _ = error "Invalid argument: expected list with 4 items"
-
-
--- The indices move over the 64 slots in a block
--- The reference implementation iterates over k=1..64
--- Most others use k=0..63, these are indices in the md5Table.
---
--- X is the current block, an array of 16 Word32 values (64 bytes)
---  X[0..16]
---
--- T is the precomputed md5table, an array of 64 Word32 values
---  T[0..64]
---
--- Note: the RFC description of rounds differs from the wikipedia description
--- but both are valid.
--- https://crypto.stackexchange.com/a/6320/95946
---
-processIndexRecursive :: Md5Digest -> Md5Block -> Int -> Md5Digest
-processIndexRecursive digest blk idx
-  | idx == 63 = processIndex digest blk idx
-  | otherwise = processIndexRecursive (processIndex digest blk idx) blk (idx + 1)
-
 
 -- Helper to show the output from each step of processIndex
 traceRound :: (NewDigestSignature) ->
@@ -106,6 +88,11 @@ traceRound digestNewFunc digest blk auxFunc k s i  = do
     let out = expandDigestArray digestNewFunc digest blk auxFunc k s i
     let bytes = word8ArrayToHexArray $ concatMap word32ToWord8Array out
     trace' (debugPrintf "round = %s" bytes) True $ out
+
+-- Call `f` with each item in the provided array as a separate argument
+expandDigestArray :: (Word32 -> Word32 -> Word32 -> Word32 -> a) -> [Word32] -> a
+expandDigestArray f [a, b, c, d] = f a b c d
+expandDigestArray _ _ = error "Invalid argument: expected list with 4 items"
 
 processIndex :: Md5Digest -> Md5Block -> Int -> Md5Digest
 processIndex digest blk i
@@ -148,6 +135,21 @@ processIndex digest blk i
         2 -> expandDigestArray digestNewC digest blk auxI (mod (i*7) 16) 15  i
         _ -> expandDigestArray digestNewB digest blk auxI (mod (i*7) 16) 21  i
 
+processIndexRecursive :: Md5Digest -> Md5Block -> Int -> Md5Digest
+processIndexRecursive digest blk idx
+  | idx == 63 = processIndex digest blk idx
+  | otherwise = processIndexRecursive (processIndex digest blk idx) blk (idx + 1)
+
+
+processBlocks :: [Md5Block] -> Md5Digest -> Md5Digest
+processBlocks blocks digest
+    | length blocks == 0 = digest
+    | otherwise = do
+        let resultDigest = processIndexRecursive digest (blocks!!0) 0
+        -- The digest registers are updated *per* block
+        let updatedDigest = zipWith (+) digest resultDigest
+        processBlocks (drop 1 blocks) updatedDigest
+
 {-
     Append a '1' bit and fill with '0' until the bit-length of the
     input adheres to:
@@ -161,22 +163,13 @@ padZeroR bytes = do
     then padZeroR $ bytes ++ [0x0]
     else bytes
 
-
-processBlocks :: [Md5Block] -> Md5Digest -> Md5Digest
-processBlocks blocks digest
-    | length blocks == 0 = digest
-    | otherwise = do
-        let resultDigest = processIndexRecursive digest (blocks!!0) 0
-        -- The digest registers are updated *per* block
-        let updatedDigest = zipWith (+) digest resultDigest
-        processBlocks (drop 1 blocks) updatedDigest
-
 {-
     https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
     https://www.ietf.org/rfc/rfc1321.txt
 
-    Hash algorithms map a variable length bit-string onto a fixed length
-    bit-string, 128 bits (16 bytes) in the case of MD5.
+    Note: the RFC description of rounds differs from the wikipedia description
+    but both are valid.
+    https://crypto.stackexchange.com/a/6320/95946
 -}
 hash :: [Word8] -> Bool -> [Word8]
 hash bytes debug = do

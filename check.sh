@@ -14,4 +14,6 @@ info "md5:"
 /usr/bin/time md5 < $INPUTFILE
 
 info "hsh:"
-/usr/bin/time cabal run hsh -- -a md5 < $INPUTFILE
+cabal build -v0
+hsh=$(find dist-newstyle -type f -name hsh)
+/usr/bin/time $hsh -a md5 < $INPUTFILE

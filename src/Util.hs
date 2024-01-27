@@ -9,7 +9,7 @@ module Util (
 
 import Types (Md5Block)
 import Data.Binary (Word8, Word32, Word64)
-import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR, rotateL)
+import Data.Bits ((.|.), rotateR, rotateL)
 import Numeric (showHex)
 import Data.Char(toLower)
 
