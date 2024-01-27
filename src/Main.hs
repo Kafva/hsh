@@ -93,7 +93,7 @@ main = do
             putStrLn $ word8ArrayToHexString digest 16
 
         "sha1" -> do
-            let digest = Sha1.hash bytes
+            let digest = runReader (Sha1.hash bytes) opts
             putStrLn $ word8ArrayToHexString digest 16
 
         alg ->
