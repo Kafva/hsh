@@ -6,8 +6,8 @@ import Control.Monad.Reader
 import Template (md5Table)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
 import Data.Binary (Word8, Word32, Word64)
-import Log (trace')
-import Types (Config, Config(..), Md5Block, Md5Digest)
+import Log (trace', trace'')
+import Types (Config, Md5Block, Md5Digest)
 import Util (word8ArrayToHexArray,
              word8toWord32Array,
              word32ToWord8Array,
@@ -35,25 +35,33 @@ auxH x y z = xor (xor x y) z
 auxI :: AuxiliaryFunctionSignature
 auxI x y z = xor y (x .|. (complement z))
 
+showDigest :: Md5Digest -> String
+showDigest digest = word8ArrayToHexArray (concatMap word32ToWord8Array digest) 16
+
 digestNewA :: NewDigestSignature
 digestNewA a b c d blk auxFunction k s i = do
     let newA = auxRound a b c d auxFunction blk k s i
-    return [newA, b, c, d]
+    let newDigest = [newA, b, c, d]
+    trace'' "ABCD [i=%d]: %s" i (showDigest newDigest) $ newDigest
 
 digestNewB :: NewDigestSignature
 digestNewB a b c d blk auxFunction k s i = do
     let newB = auxRound b c d a auxFunction blk k s i
-    return [a, newB, c, d]
+    let newDigest = [a, newB, c, d]
+    trace'' "BCDA [i=%d]: %s" i (showDigest newDigest) $ newDigest
+
 
 digestNewC :: NewDigestSignature
 digestNewC a b c d blk auxFunction k s i = do
     let newC = auxRound c d a b auxFunction blk k s i
-    return [a, b, newC, d]
+    let newDigest = [a, b, newC, d]
+    trace'' "CDAB [i=%d]: %s" i (showDigest newDigest) $ newDigest
 
 digestNewD :: NewDigestSignature
 digestNewD a b c d blk auxFunction k s i = do
     let newD = auxRound d a b c auxFunction blk k s i
-    return [a, b, c, newD]
+    let newDigest = [a, b, c, newD]
+    trace'' "DABC [i=%d]: %s" i (showDigest newDigest) $ newDigest
 
 {-
  - a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
@@ -71,26 +79,18 @@ auxRound :: Word32 -> Word32 -> Word32 -> Word32 ->
 auxRound a b c d auxFunction blk k s i = do
     b + (rotateL (a + (auxFunction b c d) + (blk!!k) + $(md5Table)!!i) s)
 
--- Helper to show the output from each step of processIndex
--- traceRound :: (NewDigestSignature) ->
---               Md5Digest ->
---               Md5Block ->
---               (AuxiliaryFunctionSignature) ->
---               Int ->
---               Int ->
---               Int ->
---               Reader Config Md5Digest
--- traceRound digestNewFunc digest blk auxFunc k s i  = do
---     out <- expandDigestArray digestNewFunc digest blk auxFunc k s i
---     let bytes = word8ArrayToHexArray $ concatMap word32ToWord8Array out
---     trace' "round = %s" bytes $ out
-
 -- Call `f` with each item in the provided array as a separate argument
 expandDigestArray :: (Word32 -> Word32 -> Word32 -> Word32 -> a) ->
                      [Word32] ->
                      a
 expandDigestArray f [a, b, c, d] = f a b c d
 expandDigestArray _ _ = error "Invalid argument: expected list with 4 items"
+
+getK :: Int -> Int
+getK i | i < 16 = i
+       | i < 32 = mod (1 + i*5) 16
+       | i < 48 = mod (5 + i*3) 16
+       | otherwise = mod (i*7) 16
 
 processIndex :: Md5Digest -> Md5Block -> Int -> Reader Config Md5Digest
 processIndex digest blk i
@@ -103,10 +103,10 @@ processIndex digest blk i
     --      newD (22)
     -- (i) table index: range(0,15,1)   [0..64]
     | i < 16 = case (mod i 4) of
-        0 -> expandDigestArray digestNewA digest blk auxF i 7 i
-        1 -> expandDigestArray digestNewD digest blk auxF i 12 i
-        2 -> expandDigestArray digestNewC digest blk auxF i 17 i
-        _ -> expandDigestArray digestNewB digest blk auxF i 22 i
+        0 -> expandDigestArray digestNewA digest blk auxF (getK i) 7  i
+        1 -> expandDigestArray digestNewD digest blk auxF (getK i) 12 i
+        2 -> expandDigestArray digestNewC digest blk auxF (getK i) 17 i
+        _ -> expandDigestArray digestNewB digest blk auxF (getK i) 22 i
     -- Round 2
     -- (k) block index: range(1,15,5)   [0..16]
     -- (s) shift by:
@@ -116,22 +116,22 @@ processIndex digest blk i
     --      newD (9)
     -- (i) table index: range(16,31,1)   [0..64]
     | i < 32 = case (mod i 4) of
-        0 -> expandDigestArray digestNewA digest blk auxG (mod (1 + i*5) 16) 5   i
-        1 -> expandDigestArray digestNewD digest blk auxG (mod (1 + i*5) 16) 9   i
-        2 -> expandDigestArray digestNewC digest blk auxG (mod (1 + i*5) 16) 14  i
-        _ -> expandDigestArray digestNewB digest blk auxG (mod (1 + i*5) 16) 20  i
+        0 -> expandDigestArray digestNewA digest blk auxG (getK i) 5   i
+        1 -> expandDigestArray digestNewD digest blk auxG (getK i) 9   i
+        2 -> expandDigestArray digestNewC digest blk auxG (getK i) 14  i
+        _ -> expandDigestArray digestNewB digest blk auxG (getK i) 20  i
     -- Round 3
     | i < 48 = case (mod i 4) of
-        0 -> expandDigestArray digestNewA digest blk auxH (mod (5 + i*3) 16) 4   i
-        1 -> expandDigestArray digestNewD digest blk auxH (mod (5 + i*3) 16) 11  i
-        2 -> expandDigestArray digestNewC digest blk auxH (mod (5 + i*3) 16) 16  i
-        _ -> expandDigestArray digestNewB digest blk auxH (mod (5 + i*3) 16) 23  i
+        0 -> expandDigestArray digestNewA digest blk auxH (getK i) 4   i
+        1 -> expandDigestArray digestNewD digest blk auxH (getK i) 11  i
+        2 -> expandDigestArray digestNewC digest blk auxH (getK i) 16  i
+        _ -> expandDigestArray digestNewB digest blk auxH (getK i) 23  i
     -- Round 4
     | otherwise = case (mod i 4) of
-        0 -> expandDigestArray digestNewA digest blk auxI (mod (i*7) 16) 6   i
-        1 -> expandDigestArray digestNewD digest blk auxI (mod (i*7) 16) 10  i
-        2 -> expandDigestArray digestNewC digest blk auxI (mod (i*7) 16) 15  i
-        _ -> expandDigestArray digestNewB digest blk auxI (mod (i*7) 16) 21  i
+        0 -> expandDigestArray digestNewA digest blk auxI (getK i) 6   i
+        1 -> expandDigestArray digestNewD digest blk auxI (getK i) 10  i
+        2 -> expandDigestArray digestNewC digest blk auxI (getK i) 15  i
+        _ -> expandDigestArray digestNewB digest blk auxI (getK i) 21  i
 
 processIndexRecursive :: Md5Digest -> Md5Block -> Int -> Reader Config Md5Digest
 processIndexRecursive digest blk idx
@@ -195,7 +195,8 @@ hash bytes = do
 
     -- * Process message
     -- Run the round function with each auxiliary function as described in the
-    -- RFC, updating one slot in the digest for each `auxRound` call.
+    -- RFC, updating one slot in the digest for each `digestNew` call.
     finalDigest <- processBlocks blocks startDigest
 
-    return $ concatMap word32ToWord8Array finalDigest
+    trace' "output: %s" (showDigest finalDigest) $
+        concatMap word32ToWord8Array finalDigest

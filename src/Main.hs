@@ -7,7 +7,7 @@ import Sha1
 import Template
 import Types (Config(..))
 import Util (word8ArrayToHexString, word8ArrayToHexArray)
-import qualified Log
+import Log (debug')
 
 import GHC.Base (when)
 import System.IO (hPutStrLn, stderr)
@@ -64,12 +64,6 @@ options = [
         "Select algorithm [md5,sha1]"
     ]
 
-
-readMe :: Int -> Reader Config String
-readMe number = do
-    cfg <- ask
-    return (algorithm cfg ++ (show number))
-
 main :: IO ()
 main = do
     args <- getArgs
@@ -85,31 +79,24 @@ main = do
 
     -- Apply default options
     opts <- foldl (>>=) (return defaultOptions) optionsFn
-    runReaderT (Log.debug' "%s\n" (show opts)) opts
-
-    let _ = runReaderT (readMe 77) opts
+    runReaderT (debug' "%s\n" (show opts)) opts
 
     -- Read from stdin
     input <- B.getContents
     let bytes :: [Word8] = B.unpack input
 
-    runReaderT (Log.debug' "raw: %s\n" (word8ArrayToHexArray bytes 64)) opts
+    runReaderT (debug' "raw input: %s\n" (word8ArrayToHexArray bytes 64)) opts
 
     case algorithm opts of
         "md5"  -> do
             let digest = runReader (Md5.hash bytes) opts
-            -- runReaderT (Log.debug' "table: %s" $ show $(md5Table)) opts
-            -- runReaderT (Log.debug' "raw input length %d byte(s)\n" (length bytes)) opts
-            -- runReaderT (Log.debug' "output: %s\n" (word8ArrayToHexArray digest)) opts
-            -- runReaderT (Log.debug' "output length %d byte(s)\n" (length digest)) opts
-
             putStrLn $ word8ArrayToHexString digest 16
 
         "sha1" -> do
-            print $ Sha1.hash bytes
+            let digest = Sha1.hash bytes
+            putStrLn $ word8ArrayToHexString digest 16
 
         alg ->
             putStrLn $ "Invalid algorithm: " ++ alg
 
     exitSuccess
-
