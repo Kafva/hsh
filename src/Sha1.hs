@@ -1,11 +1,10 @@
 module Sha1 (hash) where
 
-import Debug.Trace(trace)
 import Control.Monad.Reader
 import Data.Foldable (foldl')
 import Data.Binary (Word8, Word32)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR)
-import Log (trace')
+import Log (trace', trace'')
 import Types (Config, Sha1Digest, Sha1ArrayW, Block)
 import Util (padSha1Input,
              word8ArrayToHexArray,
@@ -46,21 +45,23 @@ xorReduce acc x = xor acc x
  -  A = TEMP;
  -
  -}
-processW :: Int -> Sha1ArrayW -> Sha1Digest -> Sha1Digest
+processW :: Int -> Sha1ArrayW -> Reader Config Sha1Digest -> Reader Config Sha1Digest
 processW t w digestH = do
-    let a = digestH!!0
-    let b = digestH!!1
-    let c = digestH!!2
-    let d = digestH!!3
-    let e = digestH!!4
+    cfg <- ask
+    let digest = (runReader digestH cfg)
+    let a = digest!!0
+    let b = digest!!1
+    let c = digest!!2
+    let d = digest!!3
+    let e = digest!!4
     let newA = (circularShift a 5) + (f t b c d) + e + (w!!t) + (getK t)
     let newC = circularShift b 30
-    [newA, a, newC, c, d]
+    let newDigest = [newA, a, newC, c, d]
+    trace'' "[t=%d] %s" t (show newDigest) $ newDigest
 
 -- S^n(X)  = (X << n) OR (X >> 32-n)
 circularShift :: Word32 -> Int -> Word32
 circularShift x n = (rotateL x n) .|. (rotateR x (32 - n))
-
 
 -- The values from W[16...80] are derived from the initial values in W[0...16].
 --
@@ -75,6 +76,16 @@ getW t w
                   w!!(t-16)]
         let v = circularShift (foldl' xorReduce 0 ws) 1
         (take t w) ++ [v] ++ (drop t w)
+
+processBlock :: Reader Config Sha1Digest -> Block -> Reader Config Sha1Digest
+processBlock digestH block = do
+    -- Initialise the first 16 slots of W with the values from the current block
+    -- and calculate the rest.
+    let startW :: Sha1ArrayW = block ++ (replicate (80-16) 0)
+    let arrW = foldl' (\w t -> getW t w) startW [16..80]
+
+    foldl' (\d t -> processW t arrW d) digestH [0..80]
+
 
 {-
  - https://www.ietf.org/rfc/rfc3174.txt
@@ -92,17 +103,9 @@ hash bytes = do
                                  0x10325476,
                                  0xc3d2e1f0]
 
-    -- Initialise the first 16 slots of W with the values from the current block
-    -- and calculate the rest.
-    let startW :: Sha1ArrayW = (blocks!!0) ++ (replicate (80-16) 0)
-    -- let arrW = foldl' (\w t -> getW t w) startW [16..80]
-    let arrW = trace (show startW) $ getW 16 startW
+    -- * Process each block
+    finalDigest <- processBlock digestH (blocks!!0)
 
-    -- * Start processing
-
-
-    let finalDigest = digestH
-
-    trace' "output: %d" (arrW!!16) $
+    trace' "output: %s" (word8ArrayToHexArray (word32ArrayToWord8ArrayBE finalDigest) 20) $
         word32ArrayToWord8ArrayBE finalDigest
 

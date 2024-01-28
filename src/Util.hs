@@ -158,8 +158,7 @@ padMd5Input bytes = do
  -
  -}
 padInput :: [Word8] -> [Word8]
-padInput bytes = do
-    if (mod (length bytes) 64) /= (64-8)
-    then padInput $ bytes ++ [0x0]
-    else bytes
+padInput bytes = if (mod (length bytes) 64) /= (64-8)
+                 then padInput $ bytes ++ [0x0]
+                 else bytes
 

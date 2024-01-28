@@ -316,7 +316,6 @@ void SHA1ProcessMessageBlock(SHA1Context *context)
        W[t] = SHA1CircularShift(1,W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16]);
     }
 
-    dumpWord("word[16]", W[16]);
 
     A = context->Intermediate_Hash[0];
     B = context->Intermediate_Hash[1];
@@ -333,7 +332,18 @@ void SHA1ProcessMessageBlock(SHA1Context *context)
         C = SHA1CircularShift(30,B);
         B = A;
         A = temp;
+
+        uint32_t xd[5];
+        xd[0] = A;
+        xd[1] = B;
+        xd[2] = C;
+        xd[3] = D;
+        xd[4] = E;
+        dumpWords("ABCDE", xd, 5);
+        break;
+
     }
+
 
     for(t = 20; t < 40; t++)
     {
