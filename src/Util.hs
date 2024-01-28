@@ -1,10 +1,11 @@
 module Util (
     word8ArrayToHexArray,
     word8ArrayToHexString,
-    word8toWord32Array,
-    word32ToWord8Array,
+    word8toWord32ArrayLE,
+    word8toWord32ArrayBE,
     word32ArrayToBlocks,
-    word32ArrayToWord8Array,
+    word32ArrayToWord8ArrayLE,
+    word32ArrayToWord8ArrayBE,
     padMd5Input,
     padSha1Input,
     showMd5Digest,
@@ -40,12 +41,17 @@ word8ArrayToHexString arr maxlen
     | length arr <= maxlen = concatMap (word8ToHexString "") arr
     | otherwise = concatMap (word8ToHexString "") (take maxlen arr) ++ "..."
 
+word32ToWord8ArrayBE :: Word32 -> [Word8]
+word32ToWord8ArrayBE word = [fromIntegral (rotateR word 24),
+                             fromIntegral (rotateR word 16),
+                             fromIntegral (rotateR word 8),
+                             fromIntegral word]
 
-word32ToWord8Array :: Word32 -> [Word8]
-word32ToWord8Array word = [fromIntegral word,
-                           fromIntegral (rotateR word 8),
-                           fromIntegral (rotateR word 16),
-                           fromIntegral (rotateR word 24)]
+word32ToWord8ArrayLE :: Word32 -> [Word8]
+word32ToWord8ArrayLE word = [fromIntegral word,
+                             fromIntegral (rotateR word 8),
+                             fromIntegral (rotateR word 16),
+                             fromIntegral (rotateR word 24)]
 
 word64ToWord8ArrayLE :: Word64 -> [Word8]
 word64ToWord8ArrayLE word = [fromIntegral word,
@@ -67,10 +73,10 @@ word64ToWord8ArrayBE word = [fromIntegral (rotateR word 56),
                              fromIntegral (rotateR word 8),
                              fromIntegral word]
 
--- Convert an array of 4 bytes into a Little-endian 16 byte word
+-- Convert an array of 4 bytes into a Little-endian 32-bit word
 --   [0x44 0x33 0x22 0x11] ---> 0x11223344
-word8ArrayToWord32 :: [Word8] -> Word32
-word8ArrayToWord32 bytes =
+word8ArrayToWord32LE :: [Word8] -> Word32
+word8ArrayToWord32LE bytes =
     if length bytes /= 4
     then 0
     else fromIntegral (bytes!!0) .|.
@@ -78,16 +84,32 @@ word8ArrayToWord32 bytes =
          (rotateL (fromIntegral $ bytes!!2) 16) .|.
          (rotateL (fromIntegral $ bytes!!3) 24)
 
+-- Convert an array of 4 bytes into a Big-endian 32-bit word
+--   [0x44 0x33 0x22 0x11] ---> 0x44332211
+word8ArrayToWord32BE :: [Word8] -> Word32
+word8ArrayToWord32BE bytes =
+    if length bytes /= 4
+    then 0
+    else (rotateL (fromIntegral $ bytes!!0) 24) .|.
+         (rotateL (fromIntegral $ bytes!!1) 16) .|.
+         (rotateL (fromIntegral $ bytes!!2) 8) .|.
+         fromIntegral (bytes!!3)
 
 -- Split the given array of bytes into a list of 32 byte entries
 -- Returns an empty list if the list is not evenly divisible
-word8toWord32Array :: [Word8] -> [Word32]
-word8toWord32Array [] = []
-word8toWord32Array arr = do
+word8toWord32ArrayLE :: [Word8] -> [Word32]
+word8toWord32ArrayLE [] = []
+word8toWord32ArrayLE arr = do
     if mod (length arr) 4 /= 0
     then []
-    else word8ArrayToWord32 (take 4 arr) : word8toWord32Array (drop 4 arr)
+    else word8ArrayToWord32LE (take 4 arr) : word8toWord32ArrayLE (drop 4 arr)
 
+word8toWord32ArrayBE :: [Word8] -> [Word32]
+word8toWord32ArrayBE [] = []
+word8toWord32ArrayBE arr = do
+    if mod (length arr) 4 /= 0
+    then []
+    else word8ArrayToWord32BE (take 4 arr) : word8toWord32ArrayBE (drop 4 arr)
 
 word32ArrayToBlocks :: [Word32] -> [Block]
 word32ArrayToBlocks [] = []
@@ -98,14 +120,17 @@ word32ArrayToBlocks arr = do
         (take 16 arr)
         : word32ArrayToBlocks (drop 16 arr)
 
-word32ArrayToWord8Array :: [Word32] -> [Word8]
-word32ArrayToWord8Array = concatMap word32ToWord8Array
+word32ArrayToWord8ArrayLE :: [Word32] -> [Word8]
+word32ArrayToWord8ArrayLE = concatMap word32ToWord8ArrayLE
+
+word32ArrayToWord8ArrayBE :: [Word32] -> [Word8]
+word32ArrayToWord8ArrayBE = concatMap word32ToWord8ArrayBE
 
 showMd5Digest :: Md5Digest -> String
-showMd5Digest digest = word8ArrayToHexArray (word32ArrayToWord8Array digest) 16
+showMd5Digest digest = word8ArrayToHexArray (word32ArrayToWord8ArrayLE digest) 16
 
 showSha1Digest :: Sha1Digest -> String
-showSha1Digest digest = word8ArrayToHexArray (word32ArrayToWord8Array digest) 20
+showSha1Digest digest = word8ArrayToHexArray (word32ArrayToWord8ArrayBE digest) 20
 
 padSha1Input :: [Word8] -> [Word8]
 padSha1Input bytes = do

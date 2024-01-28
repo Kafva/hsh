@@ -9,8 +9,8 @@ import Data.Binary (Word8, Word32)
 import Log (trace', trace'')
 import Types (Config, Block, Md5Digest)
 import Util (word8ArrayToHexArray,
-             word8toWord32Array,
-             word32ArrayToWord8Array,
+             word8toWord32ArrayLE,
+             word32ArrayToWord8ArrayLE,
              word32ArrayToBlocks,
              padMd5Input,
              showMd5Digest)
@@ -161,7 +161,7 @@ hash bytes = do
     -- * Pad the input to be a multiple of the block size (16 bytes)
     let paddedBytes = padMd5Input bytes
     blocks <-  trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
-               (word32ArrayToBlocks $ word8toWord32Array paddedBytes)
+               (word32ArrayToBlocks $ word8toWord32ArrayLE paddedBytes)
 
     -- * Set starting values
     -- The RFC uses Little-endian byte ordering for words,
@@ -179,4 +179,4 @@ hash bytes = do
     finalDigest <- processBlocks blocks startDigest
 
     trace' "output: %s" (showMd5Digest finalDigest) $
-        word32ArrayToWord8Array finalDigest
+        word32ArrayToWord8ArrayLE finalDigest

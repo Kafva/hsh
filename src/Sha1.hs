@@ -8,11 +8,10 @@ import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR)
 import Log (trace')
 import Types (Config, Sha1Digest, Sha1ArrayW, Block)
 import Util (padSha1Input,
-             word32ToWord8Array,
              word8ArrayToHexArray,
-             word8toWord32Array,
+             word8toWord32ArrayBE,
              word32ArrayToBlocks,
-             word32ArrayToWord8Array,
+             word32ArrayToWord8ArrayBE,
              showSha1Digest)
 
 f :: Int -> Word32 -> Word32 -> Word32 -> Word32
@@ -84,7 +83,7 @@ hash :: [Word8] -> Reader Config [Word8]
 hash bytes = do
     let paddedBytes = padSha1Input bytes
     blocks :: [Block] <- trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
-                         (word32ArrayToBlocks $ word8toWord32Array paddedBytes)
+                         (word32ArrayToBlocks $ word8toWord32ArrayBE paddedBytes)
 
     -- * Set starting values for H
     let digestH :: Sha1Digest = [0x67452301,
@@ -105,5 +104,5 @@ hash bytes = do
     let finalDigest = digestH
 
     trace' "output: %d" (arrW!!16) $
-        word32ArrayToWord8Array finalDigest
+        word32ArrayToWord8ArrayBE finalDigest
 
