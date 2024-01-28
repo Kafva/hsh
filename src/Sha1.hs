@@ -45,15 +45,13 @@ xorReduce acc x = xor acc x
  -  A = TEMP;
  -
  -}
-processW :: Int -> Sha1ArrayW -> Reader Config Sha1Digest -> Reader Config Sha1Digest
+processW :: Int -> Sha1ArrayW -> Sha1Digest -> Reader Config Sha1Digest
 processW t w digestH = do
-    cfg <- ask
-    let digest = (runReader digestH cfg)
-    let a = digest!!0
-    let b = digest!!1
-    let c = digest!!2
-    let d = digest!!3
-    let e = digest!!4
+    let a = digestH!!0
+    let b = digestH!!1
+    let c = digestH!!2
+    let d = digestH!!3
+    let e = digestH!!4
     let newA = (circularShift a 5) + (f t b c d) + e + (w!!t) + (getK t)
     let newC = circularShift b 30
     let newDigest = [newA, a, newC, c, d]
@@ -77,14 +75,15 @@ getW t w
         let v = circularShift (foldl' xorReduce 0 ws) 1
         (take t w) ++ [v] ++ (drop t w)
 
-processBlock :: Reader Config Sha1Digest -> Block -> Reader Config Sha1Digest
+processBlock :: Sha1Digest -> Block -> Reader Config Sha1Digest
 processBlock digestH block = do
+    cfg <- ask
     -- Initialise the first 16 slots of W with the values from the current block
     -- and calculate the rest.
     let startW :: Sha1ArrayW = block ++ (replicate (80-16) 0)
     let arrW = foldl' (\w t -> getW t w) startW [16..80]
 
-    foldl' (\d t -> processW t arrW d) digestH [0..80]
+    foldl' (\d t -> processW t arrW (runReader d cfg)) digestH [0..80]
 
 
 {-
