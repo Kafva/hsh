@@ -53,6 +53,9 @@ int SHA1Input(  SHA1Context *,
                 unsigned int);
 int SHA1Result( SHA1Context *,
                 uint8_t Message_Digest[SHA1HashSize]);
+static void dumpBytes(char *label, uint8_t *input, int count);
+static void dumpWords(char *label, uint32_t *input, int count);
+static void dumpWord(char *label, uint32_t input);
 
 #endif
 
@@ -312,6 +315,9 @@ void SHA1ProcessMessageBlock(SHA1Context *context)
        W[t] = SHA1CircularShift(1,W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16]);
     }
 
+    // dumpWords("w", W, 80);
+    dumpWord("word[16]", W[16]);
+
     A = context->Intermediate_Hash[0];
     B = context->Intermediate_Hash[1];
     C = context->Intermediate_Hash[2];
@@ -459,6 +465,36 @@ void SHA1PadMessage(SHA1Context *context)
 #include <stdio.h>
 #include <string.h>
 
+static void dumpBytes(char *label, uint8_t *input, int count) {
+    printf("\033[33mRFC\033[0m: %s = [", label);
+    for (int i = 0; i < count; i++) {
+        printf("0x%02x", input[i]);
+        if (i != count - 1) {
+            printf(", ");
+        } else {
+            printf(" ");
+        }
+    }
+    printf("]\n");
+}
+
+static void dumpWords(char *label, uint32_t *input, int count) {
+    printf("\033[33mRFC\033[0m: %s = [", label);
+    for (int i = 0; i < count; i++) {
+        printf("%u", input[i]);
+        if (i != count - 1) {
+            printf(", ");
+        } else {
+            printf(" ");
+        }
+    }
+    printf("]\n");
+}
+
+static void dumpWord(char *label, uint32_t input) {
+    printf("\033[33mRFC\033[0m: %s = %u\n", label, input);
+}
+
 /*
  *  Define patterns for testing
  */
@@ -487,18 +523,6 @@ char *resultarray[4] =
     "DE A3 56 A2 CD DD 90 C7 A7 EC ED C5 EB B5 63 93 4F 46 04 52"
 };
 
-static void dumpBytes(char *label, uint8_t *input, int count) {
-    printf("\033[33mRFC\033[0m: %s = [", label);
-    for (int i = 0; i < count; i++) {
-        printf("0x%02x", input[i] & 0xff);
-        if (i != count - 1) {
-            printf(", ");
-        } else {
-            printf(" ");
-        }
-    }
-    printf("]\n");
-}
 
 int main()
 {
