@@ -5,10 +5,12 @@ module Util (
     word32ToWord8Array,
     word32ArrayToBlocks,
     word64ToWord8Array,
-    padInput
+    padInput,
+    showMd5Digest,
+    showSha1Digest
 ) where
 
-import Types (Block)
+import Types (Md5Digest, Sha1Digest, Block)
 import Data.Binary (Word8, Word32, Word64)
 import Data.Bits ((.|.), rotateR, rotateL)
 import Numeric (showHex)
@@ -107,4 +109,11 @@ _padInput bytes = do
     if (mod (length bytes) 64) /= (64-8)
     then _padInput $ bytes ++ [0x0]
     else bytes
+
+
+showMd5Digest :: Md5Digest -> String
+showMd5Digest digest = word8ArrayToHexArray (concatMap word32ToWord8Array digest) 16
+
+showSha1Digest :: Sha1Digest -> String
+showSha1Digest digest = word8ArrayToHexArray (concatMap word32ToWord8Array digest) 20
 

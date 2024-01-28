@@ -5,6 +5,7 @@ module Types (
     ConfigMonad,
     Md5Digest,
     Sha1Digest,
+    Sha1ArrayW,
     Block
 ) where
 
@@ -24,3 +25,4 @@ data Config = Config {
 type Md5Digest = [Word32] -- 4 slots
 type Sha1Digest = [Word32] -- 5 slots
 type Block = [Word32]  -- 16 slots
+type Sha1ArrayW = [Word32] -- 80 slots

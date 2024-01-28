@@ -12,7 +12,8 @@ import Util (word8ArrayToHexArray,
              word8toWord32Array,
              word32ToWord8Array,
              word32ArrayToBlocks,
-             padInput)
+             padInput,
+             showMd5Digest)
 
 -- Type signature for each `digestNew` function
 type NewDigestSignature = Word32 -> Word32 -> Word32 -> Word32 ->
@@ -35,33 +36,30 @@ auxH x y z = xor (xor x y) z
 auxI :: AuxiliaryFunctionSignature
 auxI x y z = xor y (x .|. (complement z))
 
-showDigest :: Md5Digest -> String
-showDigest digest = word8ArrayToHexArray (concatMap word32ToWord8Array digest) 16
-
 digestNewA :: NewDigestSignature
 digestNewA a b c d blk auxFunction k s i = do
     let newA = auxRound a b c d auxFunction blk k s i
     let newDigest = [newA, b, c, d]
-    trace'' "ABCD [i=%d]: %s" i (showDigest newDigest) $ newDigest
+    trace'' "ABCD [i=%d]: %s" i (showMd5Digest newDigest) $ newDigest
 
 digestNewB :: NewDigestSignature
 digestNewB a b c d blk auxFunction k s i = do
     let newB = auxRound b c d a auxFunction blk k s i
     let newDigest = [a, newB, c, d]
-    trace'' "BCDA [i=%d]: %s" i (showDigest newDigest) $ newDigest
+    trace'' "BCDA [i=%d]: %s" i (showMd5Digest newDigest) $ newDigest
 
 
 digestNewC :: NewDigestSignature
 digestNewC a b c d blk auxFunction k s i = do
     let newC = auxRound c d a b auxFunction blk k s i
     let newDigest = [a, b, newC, d]
-    trace'' "CDAB [i=%d]: %s" i (showDigest newDigest) $ newDigest
+    trace'' "CDAB [i=%d]: %s" i (showMd5Digest newDigest) $ newDigest
 
 digestNewD :: NewDigestSignature
 digestNewD a b c d blk auxFunction k s i = do
     let newD = auxRound d a b c auxFunction blk k s i
     let newDigest = [a, b, c, newD]
-    trace'' "DABC [i=%d]: %s" i (showDigest newDigest) $ newDigest
+    trace'' "DABC [i=%d]: %s" i (showMd5Digest newDigest) $ newDigest
 
 {-
  - a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
@@ -180,5 +178,5 @@ hash bytes = do
     -- RFC, updating one slot in the digest for each `digestNew` call.
     finalDigest <- processBlocks blocks startDigest
 
-    trace' "output: %s" (showDigest finalDigest) $
+    trace' "output: %s" (showMd5Digest finalDigest) $
         concatMap word32ToWord8Array finalDigest
