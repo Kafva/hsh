@@ -5,6 +5,7 @@ module Util (
     word32ToWord8Array,
     word32ArrayToBlocks,
     word64ToWord8Array,
+    word32ArrayToWord8Array,
     padInput,
     showMd5Digest,
     showSha1Digest
@@ -112,8 +113,11 @@ _padInput bytes = do
 
 
 showMd5Digest :: Md5Digest -> String
-showMd5Digest digest = word8ArrayToHexArray (concatMap word32ToWord8Array digest) 16
+showMd5Digest digest = word8ArrayToHexArray (word32ArrayToWord8Array digest) 16
 
 showSha1Digest :: Sha1Digest -> String
-showSha1Digest digest = word8ArrayToHexArray (concatMap word32ToWord8Array digest) 20
+showSha1Digest digest = word8ArrayToHexArray (word32ArrayToWord8Array digest) 20
+
+word32ArrayToWord8Array :: [Word32] -> [Word8]
+word32ArrayToWord8Array = concatMap word32ToWord8Array
 

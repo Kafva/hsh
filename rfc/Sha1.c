@@ -309,13 +309,13 @@ void SHA1ProcessMessageBlock(SHA1Context *context)
         W[t] |= context->Message_Block[t * 4 + 2] << 8;
         W[t] |= context->Message_Block[t * 4 + 3];
     }
+    dumpBytes("Message_Block", context->Message_Block, 16*4);
 
     for(t = 16; t < 80; t++)
     {
        W[t] = SHA1CircularShift(1,W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16]);
     }
 
-    // dumpWords("w", W, 80);
     dumpWord("word[16]", W[16]);
 
     A = context->Intermediate_Hash[0];

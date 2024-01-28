@@ -1,5 +1,6 @@
 module Sha1 (hash) where
 
+import Debug.Trace(trace)
 import Control.Monad.Reader
 import Data.Foldable (foldl')
 import Data.Binary (Word8, Word32)
@@ -11,6 +12,7 @@ import Util (padInput,
              word8ArrayToHexArray,
              word8toWord32Array,
              word32ArrayToBlocks,
+             word32ArrayToWord8Array,
              showSha1Digest)
 
 f :: Int -> Word32 -> Word32 -> Word32 -> Word32
@@ -20,7 +22,7 @@ f t b c d
     -- f(t;B,C,D) = (B AND C) OR (B AND D) OR (C AND D)
     | 40 <= t && t <= 59 = (b .&. c) .|. (b .&. d) .|. (c .&. d)
     -- f(t;B,C,D) = B XOR C XOR D
-    | otherwise = xor b (xor c d)
+    | otherwise = foldl' xorReduce b [b, c, d]
 
 
 getK :: Int -> Word32
@@ -30,19 +32,6 @@ getK i
     | i <= 59   = 0x8f1bbcdc
     | otherwise = 0xca62c1d6
 
--- The values from W[16...80] are derived from the initial values in W[0...16].
---
--- W(t) = S^1(W(t-3) XOR W(t-8) XOR W(t-14) XOR W(t-16)) <<< 1
-getW :: Int -> Sha1ArrayW -> Word32
-getW t w
-    | t < 0 || t > 80 = error "Invalid argument: expected index value within [0,80]"
-    | t < 16 = w!!t
-    | otherwise = do
-        let ws = [w!!(t-3),
-                  w!!(t-8),
-                  w!!(t-14),
-                  w!!(t-16)]
-        circularShift (foldl' xorReduce 0 ws) 1
 
 xorReduce :: Word32 -> Word32 -> Word32
 xorReduce acc x = xor acc x
@@ -65,13 +54,28 @@ processW t w digestH = do
     let c = digestH!!2
     let d = digestH!!3
     let e = digestH!!4
-    let newA = (circularShift a 5) + (f t b c d) + e + (getW t w) + (getK t)
+    let newA = (circularShift a 5) + (f t b c d) + e + (w!!t) + (getK t)
     let newC = circularShift b 30
     [newA, a, newC, c, d]
 
 -- S^n(X)  = (X << n) OR (X >> 32-n)
 circularShift :: Word32 -> Int -> Word32
 circularShift x n = (rotateL x n) .|. (rotateR x (32 - n))
+
+
+-- The values from W[16...80] are derived from the initial values in W[0...16].
+--
+-- W(t) = S^1(W(t-3) XOR W(t-8) XOR W(t-14) XOR W(t-16)) <<< 1
+getW :: Int -> Sha1ArrayW -> Sha1ArrayW
+getW t w
+    | t < 16 || t > 80 = error "Invalid argument: expected index value within [16,80]"
+    | otherwise = do
+        let ws = [w!!(t-3),
+                  w!!(t-8),
+                  w!!(t-14),
+                  w!!(t-16)]
+        let v = circularShift (foldl' xorReduce 0 ws) 1
+        (take t w) ++ [v] ++ (drop t w)
 
 {-
  - https://www.ietf.org/rfc/rfc3174.txt
@@ -83,22 +87,23 @@ hash bytes = do
                          (word32ArrayToBlocks $ word8toWord32Array paddedBytes)
 
     -- * Set starting values for H
-    let digestH :: [Word32] = [0x67452301,
-                               0xefcdab89,
-                               0x98badcfe,
-                               0x10325476,
-                               0xc3d2e1f0]
+    let digestH :: Sha1Digest = [0x67452301,
+                                 0xefcdab89,
+                                 0x98badcfe,
+                                 0x10325476,
+                                 0xc3d2e1f0]
 
     -- Initialise the first 16 slots of W with the values from the current block
-    -- Initialise the rest to zero and use `getW` to derive their actual values
-    let bufferW = (blocks!!0) ++ (replicate (80-16) 0)
+    -- and calculate the rest.
+    let startW :: Sha1ArrayW = (blocks!!0) ++ (replicate (80-16) 0)
+    -- let arrW = foldl' (\w t -> getW t w) startW [16..80]
+    let arrW = trace (show startW) $ getW 16 startW
 
     -- * Start processing
-    let xd = processW 0 bufferW digestH
 
 
-    let finalDigest = xd
+    let finalDigest = digestH
 
-    trace' "output: %s" (showSha1Digest finalDigest) $
-        concatMap word32ToWord8Array finalDigest
+    trace' "output: %d" (arrW!!16) $
+        word32ArrayToWord8Array finalDigest
 

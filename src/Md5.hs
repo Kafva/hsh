@@ -10,7 +10,7 @@ import Log (trace', trace'')
 import Types (Config, Block, Md5Digest)
 import Util (word8ArrayToHexArray,
              word8toWord32Array,
-             word32ToWord8Array,
+             word32ArrayToWord8Array,
              word32ArrayToBlocks,
              padInput,
              showMd5Digest)
@@ -179,4 +179,4 @@ hash bytes = do
     finalDigest <- processBlocks blocks startDigest
 
     trace' "output: %s" (showMd5Digest finalDigest) $
-        concatMap word32ToWord8Array finalDigest
+        word32ArrayToWord8Array finalDigest
