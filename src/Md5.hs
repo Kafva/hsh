@@ -12,7 +12,7 @@ import Util (word8ArrayToHexArray,
              word8toWord32Array,
              word32ArrayToWord8Array,
              word32ArrayToBlocks,
-             padInput,
+             padMd5Input,
              showMd5Digest)
 
 -- Type signature for each `digestNew` function
@@ -159,7 +159,7 @@ processBlocks blocks digest
 hash :: [Word8] -> Reader Config [Word8]
 hash bytes = do
     -- * Pad the input to be a multiple of the block size (16 bytes)
-    let paddedBytes = padInput bytes
+    let paddedBytes = padMd5Input bytes
     blocks <-  trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
                (word32ArrayToBlocks $ word8toWord32Array paddedBytes)
 

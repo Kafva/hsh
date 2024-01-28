@@ -4,9 +4,9 @@ module Util (
     word8toWord32Array,
     word32ToWord8Array,
     word32ArrayToBlocks,
-    word64ToWord8Array,
     word32ArrayToWord8Array,
-    padInput,
+    padMd5Input,
+    padSha1Input,
     showMd5Digest,
     showSha1Digest
 ) where
@@ -47,16 +47,25 @@ word32ToWord8Array word = [fromIntegral word,
                            fromIntegral (rotateR word 16),
                            fromIntegral (rotateR word 24)]
 
-word64ToWord8Array :: Word64 -> [Word8]
-word64ToWord8Array word = [fromIntegral word,
-                           fromIntegral (rotateR word 8),
-                           fromIntegral (rotateR word 16),
-                           fromIntegral (rotateR word 24),
-                           fromIntegral (rotateR word 32),
-                           fromIntegral (rotateR word 40),
-                           fromIntegral (rotateR word 48),
-                           fromIntegral (rotateR word 56)]
+word64ToWord8ArrayLE :: Word64 -> [Word8]
+word64ToWord8ArrayLE word = [fromIntegral word,
+                             fromIntegral (rotateR word 8),
+                             fromIntegral (rotateR word 16),
+                             fromIntegral (rotateR word 24),
+                             fromIntegral (rotateR word 32),
+                             fromIntegral (rotateR word 40),
+                             fromIntegral (rotateR word 48),
+                             fromIntegral (rotateR word 56)]
 
+word64ToWord8ArrayBE :: Word64 -> [Word8]
+word64ToWord8ArrayBE word = [fromIntegral (rotateR word 56),
+                             fromIntegral (rotateR word 48),
+                             fromIntegral (rotateR word 40),
+                             fromIntegral (rotateR word 32),
+                             fromIntegral (rotateR word 24),
+                             fromIntegral (rotateR word 16),
+                             fromIntegral (rotateR word 8),
+                             fromIntegral word]
 
 -- Convert an array of 4 bytes into a Little-endian 16 byte word
 --   [0x44 0x33 0x22 0x11] ---> 0x11223344
@@ -89,8 +98,32 @@ word32ArrayToBlocks arr = do
         (take 16 arr)
         : word32ArrayToBlocks (drop 16 arr)
 
+word32ArrayToWord8Array :: [Word32] -> [Word8]
+word32ArrayToWord8Array = concatMap word32ToWord8Array
+
+showMd5Digest :: Md5Digest -> String
+showMd5Digest digest = word8ArrayToHexArray (word32ArrayToWord8Array digest) 16
+
+showSha1Digest :: Sha1Digest -> String
+showSha1Digest digest = word8ArrayToHexArray (word32ArrayToWord8Array digest) 20
+
+padSha1Input :: [Word8] -> [Word8]
+padSha1Input bytes = do
+    let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
+    padInput (bytes ++ [0b1000_0000]) ++
+             (word64ToWord8ArrayBE unpaddedBitCount)
+
+padMd5Input :: [Word8] -> [Word8]
+padMd5Input bytes = do
+    let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
+    padInput (bytes ++ [0b1000_0000]) ++
+             (word64ToWord8ArrayLE unpaddedBitCount)
+
 {-
- - SHA1 and MD5 use the same padding method.
+ - SHA1 and MD5 use the same padding method,
+ - *except*
+ - for the fact that SHA1 appends the message length in Big-endian and MD5 uses
+ - Little-endian.
  -
  - The input needs to be padded so that it can be evenly fit into
  - 16 byte blocks. We pad by appending one bit ('1') followed by zeroes
@@ -101,23 +134,7 @@ word32ArrayToBlocks arr = do
  -}
 padInput :: [Word8] -> [Word8]
 padInput bytes = do
-    let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
-    _padInput (bytes ++ [0b1000_0000]) ++
-              (word64ToWord8Array unpaddedBitCount)
-
-_padInput :: [Word8] -> [Word8]
-_padInput bytes = do
     if (mod (length bytes) 64) /= (64-8)
-    then _padInput $ bytes ++ [0x0]
+    then padInput $ bytes ++ [0x0]
     else bytes
-
-
-showMd5Digest :: Md5Digest -> String
-showMd5Digest digest = word8ArrayToHexArray (word32ArrayToWord8Array digest) 16
-
-showSha1Digest :: Sha1Digest -> String
-showSha1Digest digest = word8ArrayToHexArray (word32ArrayToWord8Array digest) 20
-
-word32ArrayToWord8Array :: [Word32] -> [Word8]
-word32ArrayToWord8Array = concatMap word32ToWord8Array
 

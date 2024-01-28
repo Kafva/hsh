@@ -7,7 +7,7 @@ import Data.Binary (Word8, Word32)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR)
 import Log (trace')
 import Types (Config, Sha1Digest, Sha1ArrayW, Block)
-import Util (padInput,
+import Util (padSha1Input,
              word32ToWord8Array,
              word8ArrayToHexArray,
              word8toWord32Array,
@@ -82,7 +82,7 @@ getW t w
  -}
 hash :: [Word8] -> Reader Config [Word8]
 hash bytes = do
-    let paddedBytes = padInput bytes
+    let paddedBytes = padSha1Input bytes
     blocks :: [Block] <- trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
                          (word32ArrayToBlocks $ word8toWord32Array paddedBytes)
 
