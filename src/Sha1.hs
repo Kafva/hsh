@@ -20,10 +20,7 @@ f t b c d
     -- f(t;B,C,D) = (B AND C) OR (B AND D) OR (C AND D)
     | 40 <= t && t <= 59 = (b .&. c) .|. (b .&. d) .|. (c .&. d)
     -- f(t;B,C,D) = B XOR C XOR D
-    | otherwise = foldl' xorReduce 0 [b, c, d]
-
-xorReduce :: Word32 -> Word32 -> Word32
-xorReduce acc x = xor acc x
+    | otherwise = foldl' (\acc x -> xor acc x) 0 [b, c, d]
 
 -- S^n(X)  = (X << n) OR (X >> 32-n)
 circularShift :: Word32 -> Int -> Word32
@@ -47,7 +44,7 @@ getW t w
                   w!!(t-8),
                   w!!(t-14),
                   w!!(t-16)]
-        let v = circularShift (foldl' xorReduce 0 ws) 1
+        let v = circularShift (foldl' (\acc x -> xor acc x) 0 ws) 1
         (take t w) ++ [v] ++ (drop t w)
 
 {-
