@@ -139,7 +139,6 @@ processBlock digest block = do
         return $ zipWith (+) digest resultDigest
 
 {-
- - https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
  - https://www.ietf.org/rfc/rfc1321.txt
  -
  - Note: the RFC description of rounds differs from the wikipedia description

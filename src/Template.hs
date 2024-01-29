@@ -14,10 +14,17 @@ programVersion = do
   liftData output
 
 -- Generate the lookup table used for MD5 digest calculations
+f :: Double -> Word32
+f i = floor . (*2**32) . abs . sin $ i + 1
+
 md5Table :: Q Exp
-md5Table = do
-    lift (
-        map (\i ->
-            floor . (*2**32) . abs . sin $ (i :: Double) + 1
-        )
-        [0..63] :: [Word32])
+md5Table = lift (map f [0..63])
+
+-- Generate the constants used in SHA256, the square-root of the first 80 prime
+-- numbers.
+-- sha256Table :: Q Exp
+-- sha256Table = do
+--     lift(
+
+
+--     ) [0..80] :: [Word32]
