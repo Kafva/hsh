@@ -20,6 +20,14 @@ _check_sha1() {
     ./Sha1 < $INPUTFILE
 }
 
+_check_sha256() {
+    info "sha256sum:"
+    /usr/bin/time sha256sum < $INPUTFILE
+
+    info "Sha256 (RFC):"
+    echo TODO
+}
+
 ALG="$1"
 INPUTFILE="${2:-README.md}"
 
@@ -29,6 +37,9 @@ md5)
     ;;
 sha1)
     _check_sha1
+    ;;
+sha256)
+    _check_sha256
     ;;
 *)
     echo  "usage: $(basename $0) <md5|sha1> [file] [hsh args]" >&2

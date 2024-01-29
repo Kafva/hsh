@@ -38,6 +38,7 @@ executable hsh
     main-is:          Main.hs
     other-modules:    Md5
                       Sha1
+                      Sha256
                       Template
                       Types
                       Log

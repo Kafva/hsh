@@ -4,6 +4,7 @@ module Main (main) where
 
 import Md5
 import Sha1
+import Sha256
 import Template
 import Types (Config(..))
 import Util (word8ArrayToHexString, word8ArrayToHexArray)
@@ -61,7 +62,7 @@ options = [
         Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
             return opt { algorithm = arg }
         ) "algorithm")
-        "Select algorithm [md5,sha1]"
+        "Select algorithm [md5,sha1,sha256]"
     ]
 
 main :: IO ()
@@ -92,6 +93,10 @@ main = do
 
         "sha1" -> do
             let digest = runReader (Sha1.hash bytes) opts
+            putStrLn $ word8ArrayToHexString digest 20
+
+        "sha256" -> do
+            let digest = runReader (Sha256.hash bytes) opts
             putStrLn $ word8ArrayToHexString digest 20
 
         alg ->
