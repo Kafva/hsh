@@ -1,6 +1,5 @@
 {-
- - Trace functions,
- - have not bothered with proper handling of variadic arguments
+ - Trace functions, have not bothered with proper handling of variadic arguments
  -}
 module Log (debug', trace', trace'') where
 
