@@ -7,6 +7,7 @@ import Template (md5Table)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
 import Data.Binary (Word8, Word32)
 import Log (trace', trace'')
+import Data.Foldable (foldlM)
 import Types (Config, Block, Md5Digest)
 import Util (word8ArrayToHexArray,
              word8toWord32ArrayLE,
@@ -131,22 +132,11 @@ processIndex digest blk i
         2 -> expandDigestArray digestNewC digest blk auxI (getK i) 15  i
         _ -> expandDigestArray digestNewB digest blk auxI (getK i) 21  i
 
-processIndexRecursive :: Md5Digest -> Block -> Int -> Reader Config Md5Digest
-processIndexRecursive digest blk idx
-  | idx == 63 = processIndex digest blk idx
-  | otherwise = do
-    newDigest <- processIndex digest blk idx
-    processIndexRecursive newDigest blk (idx + 1)
-
-
-processBlocks :: [Block] -> Md5Digest -> Reader Config Md5Digest
-processBlocks blocks digest
-    | length blocks == 0 = return digest
-    | otherwise = do
-        resultDigest <- processIndexRecursive digest (blocks!!0) 0
+processBlock :: Md5Digest -> Block -> Reader Config Md5Digest
+processBlock digest block = do
+        resultDigest <- foldlM (\d idx -> processIndex d block idx) digest [0..63]
         -- The digest registers are updated *per* block
-        let updatedDigest = zipWith (+) digest resultDigest
-        processBlocks (drop 1 blocks) updatedDigest
+        return $ zipWith (+) digest resultDigest
 
 {-
  - https://www.rfc-editor.org/rfc/pdfrfc/rfc1321.txt.pdf
@@ -173,10 +163,10 @@ hash bytes = do
                        0x98ba_dcfe,
                        0x1032_5476]
 
-    -- * Process message
+    -- * Process each block
     -- Run the round function with each auxiliary function as described in the
     -- RFC, updating one slot in the digest for each `digestNew` call.
-    finalDigest <- processBlocks blocks startDigest
+    finalDigest <- foldlM processBlock startDigest blocks
 
     trace' "output: %s" (showMd5Digest finalDigest) $
         word32ArrayToWord8ArrayLE finalDigest
