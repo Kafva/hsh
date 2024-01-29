@@ -27,7 +27,7 @@ _check_sha1() {
     info "hsh:"
     cabal build -v0
     hsh=$(find dist-newstyle -type f -name hsh)
-    $hsh -d -a sha1 < $INPUTFILE
+    $hsh -a sha1 < $INPUTFILE
 }
 
 INPUTFILE="${2:-README.md}"

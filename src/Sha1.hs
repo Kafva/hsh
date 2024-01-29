@@ -1,7 +1,7 @@
 module Sha1 (hash) where
 
 import Control.Monad.Reader
-import Data.Foldable (foldl')
+import Data.Foldable (foldl', foldlM)
 import Data.Binary (Word8, Word32)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR)
 import Log (trace', trace'')
@@ -20,7 +20,7 @@ f t b c d
     -- f(t;B,C,D) = (B AND C) OR (B AND D) OR (C AND D)
     | 40 <= t && t <= 59 = (b .&. c) .|. (b .&. d) .|. (c .&. d)
     -- f(t;B,C,D) = B XOR C XOR D
-    | otherwise = foldl' xorReduce b [b, c, d]
+    | otherwise = foldl' xorReduce 0 [b, c, d]
 
 
 getK :: Int -> Word32
@@ -46,12 +46,12 @@ xorReduce acc x = xor acc x
  -
  -}
 processW :: Int -> Sha1ArrayW -> Sha1Digest -> Reader Config Sha1Digest
-processW t w digestH = do
-    let a = digestH!!0
-    let b = digestH!!1
-    let c = digestH!!2
-    let d = digestH!!3
-    let e = digestH!!4
+processW t w digest = do
+    let a = digest!!0
+    let b = digest!!1
+    let c = digest!!2
+    let d = digest!!3
+    let e = digest!!4
     let newA = (circularShift a 5) + (f t b c d) + e + (w!!t) + (getK t)
     let newC = circularShift b 30
     let newDigest = [newA, a, newC, c, d]
@@ -76,14 +76,17 @@ getW t w
         (take t w) ++ [v] ++ (drop t w)
 
 processBlock :: Sha1Digest -> Block -> Reader Config Sha1Digest
-processBlock digestH block = do
-    cfg <- ask
+processBlock digest block = do
     -- Initialise the first 16 slots of W with the values from the current block
     -- and calculate the rest.
     let startW :: Sha1ArrayW = block ++ (replicate (80-16) 0)
-    let arrW = foldl' (\w t -> getW t w) startW [16..80]
+    let arrW = foldl' (\w t -> getW t w) startW [16..79]
 
-    foldl' (\d t -> processW t arrW (runReader d cfg)) digestH [0..80]
+    -- Since `processW` returns a Reader (a Monad) we need to use a fold method
+    -- that wraps operations in a monad, `foldlM`.
+    digestResult <- foldlM (\d t -> processW t arrW d) digest [0..79]
+
+    return $ zipWith (+) digest digestResult
 
 
 {-
@@ -96,14 +99,14 @@ hash bytes = do
                          (word32ArrayToBlocks $ word8toWord32ArrayBE paddedBytes)
 
     -- * Set starting values for H
-    let digestH :: Sha1Digest = [0x67452301,
+    let digest :: Sha1Digest = [0x67452301,
                                  0xefcdab89,
                                  0x98badcfe,
                                  0x10325476,
                                  0xc3d2e1f0]
 
     -- * Process each block
-    finalDigest <- processBlock digestH (blocks!!0)
+    finalDigest <- processBlock digest (blocks!!0)
 
     trace' "output: %s" (word8ArrayToHexArray (word32ArrayToWord8ArrayBE finalDigest) 20) $
         word32ArrayToWord8ArrayBE finalDigest

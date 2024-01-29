@@ -54,7 +54,7 @@ int SHA1Input(  SHA1Context *,
 int SHA1Result( SHA1Context *,
                 uint8_t Message_Digest[SHA1HashSize]);
 static void dumpBytes(char *label, uint8_t *input, int count);
-static void dumpWords(char *label, uint32_t *input, int count);
+static void dumpWords(char *label, uint32_t *input, int idx, int count);
 static void dumpWord(char *label, uint32_t input);
 
 #endif
@@ -332,16 +332,7 @@ void SHA1ProcessMessageBlock(SHA1Context *context)
         C = SHA1CircularShift(30,B);
         B = A;
         A = temp;
-
-        uint32_t xd[5];
-        xd[0] = A;
-        xd[1] = B;
-        xd[2] = C;
-        xd[3] = D;
-        xd[4] = E;
-        dumpWords("ABCDE", xd, 5);
-        break;
-
+        // OK.
     }
 
 
@@ -374,6 +365,13 @@ void SHA1ProcessMessageBlock(SHA1Context *context)
         C = SHA1CircularShift(30,B);
         B = A;
         A = temp;
+        /* uint32_t xd[5]; */
+        /* xd[0] = A; */
+        /* xd[1] = B; */
+        /* xd[2] = C; */
+        /* xd[3] = D; */
+        /* xd[4] = E; */
+        /* dumpWords("ABCDE", xd, t, 5); */
     }
 
     context->Intermediate_Hash[0] += A;
@@ -488,8 +486,8 @@ static void dumpBytes(char *label, uint8_t *input, int count) {
     printf("]\n");
 }
 
-static void dumpWords(char *label, uint32_t *input, int count) {
-    printf("\033[33mRFC\033[0m: %s = [", label);
+static void dumpWords(char *label, uint32_t *input, int idx, int count) {
+    printf("\033[33mRFC\033[0m: [%d] %s = [", idx, label);
     for (int i = 0; i < count; i++) {
         printf("%u", input[i]);
         if (i != count - 1) {
