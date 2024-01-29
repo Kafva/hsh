@@ -309,7 +309,7 @@ void SHA1ProcessMessageBlock(SHA1Context *context)
         W[t] |= context->Message_Block[t * 4 + 2] << 8;
         W[t] |= context->Message_Block[t * 4 + 3];
     }
-    dumpBytes("Message_Block", context->Message_Block, 16*4);
+    // dumpBytes("Message_Block", context->Message_Block, 16*4);
 
     for(t = 16; t < 80; t++)
     {
@@ -539,14 +539,21 @@ int main()
     uint8_t Message_Digest[20];
     uint8_t data[20];
     size_t cnt;
+    int first_block = 1;
 
     while ((cnt = fread (data, 1, 20, stdin)) != 0) {
+        if (first_block == 0) {
+            printf("SKIP: not adapted to work with more than one block\n");
+            return 0;
+        }
         (void)SHA1Reset(&sha);
         (void)SHA1Input(&sha,
               (const unsigned char *)data,
               cnt);
         (void)SHA1Result(&sha, Message_Digest);
-        dumpBytes("output", Message_Digest, 20);
+        // dumpBytes("output", Message_Digest, 20);
+        first_block = 0;
+
     }
 
     for (int i = 0; i < 20; i++) {

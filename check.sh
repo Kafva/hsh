@@ -9,27 +9,18 @@ _check_md5() {
     info "Md5 (RFC):"
     clang -w rfc/Md5.c -o Md5
     /usr/bin/time ./Md5 < $INPUTFILE
-
-    info "hsh:"
-    cabal build -v0
-    hsh=$(find dist-newstyle -type f -name hsh)
-    /usr/bin/time $hsh -a md5 < $INPUTFILE
 }
 
 _check_sha1() {
     info "sha1sum:"
-    sha1sum < $INPUTFILE
+    /usr/bin/time sha1sum < $INPUTFILE
 
     info "Sha1 (RFC):"
     clang -w rfc/Sha1.c -o Sha1
     ./Sha1 < $INPUTFILE
-
-    info "hsh:"
-    cabal build -v0
-    hsh=$(find dist-newstyle -type f -name hsh)
-    $hsh -a sha1 < $INPUTFILE
 }
 
+ALG="$1"
 INPUTFILE="${2:-README.md}"
 
 case "$1" in
@@ -40,6 +31,13 @@ sha1)
     _check_sha1
     ;;
 *)
-    echo  "usage: $(basename $0) <md5|sha1> [file]" >&2
+    echo  "usage: $(basename $0) <md5|sha1> [file] [hsh args]" >&2
+    exit 1
 ;;
 esac
+
+info "hsh:"
+cabal build -v0
+hsh=$(find dist-newstyle -type f -name hsh)
+/usr/bin/time $hsh -a $ALG ${@:3} < $INPUTFILE
+

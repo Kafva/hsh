@@ -22,6 +22,12 @@ f t b c d
     -- f(t;B,C,D) = B XOR C XOR D
     | otherwise = foldl' xorReduce 0 [b, c, d]
 
+xorReduce :: Word32 -> Word32 -> Word32
+xorReduce acc x = xor acc x
+
+-- S^n(X)  = (X << n) OR (X >> 32-n)
+circularShift :: Word32 -> Int -> Word32
+circularShift x n = (rotateL x n) .|. (rotateR x (32 - n))
 
 getK :: Int -> Word32
 getK i
@@ -30,9 +36,19 @@ getK i
     | i <= 59   = 0x8f1bbcdc
     | otherwise = 0xca62c1d6
 
-
-xorReduce :: Word32 -> Word32 -> Word32
-xorReduce acc x = xor acc x
+-- The values from W[16...80] are derived from the initial values in W[0...16].
+--
+-- W(t) = S^1(W(t-3) XOR W(t-8) XOR W(t-14) XOR W(t-16)) <<< 1
+getW :: Int -> Sha1ArrayW -> Sha1ArrayW
+getW t w
+    | t < 16 || t > 80 = error "Invalid argument: expected index value within [16,80]"
+    | otherwise = do
+        let ws = [w!!(t-3),
+                  w!!(t-8),
+                  w!!(t-14),
+                  w!!(t-16)]
+        let v = circularShift (foldl' xorReduce 0 ws) 1
+        (take t w) ++ [v] ++ (drop t w)
 
 {-
  -
@@ -57,24 +73,6 @@ processW t w digest = do
     let newDigest = [newA, a, newC, c, d]
     trace'' "[t=%d] %s" t (show newDigest) $ newDigest
 
--- S^n(X)  = (X << n) OR (X >> 32-n)
-circularShift :: Word32 -> Int -> Word32
-circularShift x n = (rotateL x n) .|. (rotateR x (32 - n))
-
--- The values from W[16...80] are derived from the initial values in W[0...16].
---
--- W(t) = S^1(W(t-3) XOR W(t-8) XOR W(t-14) XOR W(t-16)) <<< 1
-getW :: Int -> Sha1ArrayW -> Sha1ArrayW
-getW t w
-    | t < 16 || t > 80 = error "Invalid argument: expected index value within [16,80]"
-    | otherwise = do
-        let ws = [w!!(t-3),
-                  w!!(t-8),
-                  w!!(t-14),
-                  w!!(t-16)]
-        let v = circularShift (foldl' xorReduce 0 ws) 1
-        (take t w) ++ [v] ++ (drop t w)
-
 processBlock :: Sha1Digest -> Block -> Reader Config Sha1Digest
 processBlock digest block = do
     -- Initialise the first 16 slots of W with the values from the current block
@@ -83,7 +81,7 @@ processBlock digest block = do
     let arrW = foldl' (\w t -> getW t w) startW [16..79]
 
     -- Since `processW` returns a Reader (a Monad) we need to use a fold method
-    -- that wraps operations in a monad, `foldlM`.
+    -- that wraps operations in a monad, `foldM`.
     digestResult <- foldlM (\d t -> processW t arrW d) digest [0..79]
 
     return $ zipWith (+) digest digestResult
@@ -94,20 +92,21 @@ processBlock digest block = do
  -}
 hash :: [Word8] -> Reader Config [Word8]
 hash bytes = do
+    -- * Pad the input
     let paddedBytes = padSha1Input bytes
     blocks :: [Block] <- trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
                          (word32ArrayToBlocks $ word8toWord32ArrayBE paddedBytes)
 
-    -- * Set starting values for H
+    -- * Set starting values
     let digest :: Sha1Digest = [0x67452301,
-                                 0xefcdab89,
-                                 0x98badcfe,
-                                 0x10325476,
-                                 0xc3d2e1f0]
+                                0xefcdab89,
+                                0x98badcfe,
+                                0x10325476,
+                                0xc3d2e1f0]
 
     -- * Process each block
-    finalDigest <- processBlock digest (blocks!!0)
+    finalDigest <- foldlM processBlock digest blocks
 
-    trace' "output: %s" (word8ArrayToHexArray (word32ArrayToWord8ArrayBE finalDigest) 20) $
+    trace' "output: %s" (showSha1Digest finalDigest) $
         word32ArrayToWord8ArrayBE finalDigest
 
