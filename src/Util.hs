@@ -9,10 +9,11 @@ module Util (
     padMd5Input,
     padSha1Input,
     showMd5Digest,
-    showSha1Digest
+    showSha1Digest,
+    showSha256Digest
 ) where
 
-import Types (Md5Digest, Sha1Digest, Block)
+import Types (Md5Digest, Sha1Digest, Sha256Digest, Block)
 import Data.Binary (Word8, Word32, Word64)
 import Data.Bits ((.|.), rotateR, rotateL)
 import Numeric (showHex)
@@ -131,6 +132,9 @@ showMd5Digest digest = word8ArrayToHexArray (word32ArrayToWord8ArrayLE digest) 1
 
 showSha1Digest :: Sha1Digest -> String
 showSha1Digest digest = word8ArrayToHexArray (word32ArrayToWord8ArrayBE digest) 20
+
+showSha256Digest :: Sha256Digest -> String
+showSha256Digest digest = word8ArrayToHexArray (word32ArrayToWord8ArrayBE digest) 32
 
 padSha1Input :: [Word8] -> [Word8]
 padSha1Input bytes = do

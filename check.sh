@@ -42,7 +42,7 @@ sha256)
     _check_sha256
     ;;
 *)
-    echo  "usage: $(basename $0) <md5|sha1> [file] [hsh args]" >&2
+    echo  "usage: $(basename $0) <algorithm> [file] [hsh args]" >&2
     exit 1
 ;;
 esac
