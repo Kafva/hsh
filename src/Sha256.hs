@@ -7,7 +7,8 @@ import Data.Foldable (foldl', foldlM)
 import Data.Binary (Word8, Word32)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR)
 import Log (trace', trace'')
-import Types (Config, Block)
+import Types (Config, Block, Sha256Digest)
+import Numeric (showHex)
 import Util (padSha1Input,
              word8ArrayToHexArray,
              word8toWord32ArrayBE,
@@ -38,11 +39,11 @@ hash bytes = do
                          (word32ArrayToBlocks $ word8toWord32ArrayBE paddedBytes)
 
 
-    let finalDigest :: [Word32] = $(sha256Table)
+    let finalDigest :: Sha256Digest = []
 
-    trace' "output: %s" (word8ArrayToHexArray (word32ArrayToWord8ArrayBE finalDigest) 64) $
+    -- trace' "output: %s" (word8ArrayToHexArray (word32ArrayToWord8ArrayBE finalDigest) 64) $
+    --     word32ArrayToWord8ArrayBE finalDigest
+
+    trace' "output: %s" (showSha256Digest finalDigest) $
         word32ArrayToWord8ArrayBE finalDigest
-
-
-    --return $ trace' "output: %s" (word8ArrayToHexArray table) $ table
 
