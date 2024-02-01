@@ -97,7 +97,7 @@ main = do
 
         "sha256" -> do
             let digest = runReader (Sha256.hash bytes) opts
-            putStrLn $ word8ArrayToHexString digest 20
+            putStrLn $ word8ArrayToHexString digest 32
 
         alg ->
             putStrLn $ "Invalid algorithm: " ++ alg

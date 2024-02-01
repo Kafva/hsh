@@ -3,7 +3,7 @@ module Sha1 (hash) where
 import Control.Monad.Reader
 import Data.Foldable (foldl', foldlM)
 import Data.Binary (Word8, Word32)
-import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR)
+import Data.Bits ((.&.), (.|.), complement, xor)
 import Log (trace', trace'')
 import Types (Config, Sha1Digest, Sha1ArrayW, Block)
 import Util (padSha1Input,
@@ -11,7 +11,8 @@ import Util (padSha1Input,
              word8toWord32ArrayBE,
              word32ArrayToBlocks,
              word32ArrayToWord8ArrayBE,
-             showSha1Digest)
+             showSha1Digest,
+             circularShiftL)
 
 f :: Int -> Word32 -> Word32 -> Word32 -> Word32
 f t b c d
@@ -21,10 +22,6 @@ f t b c d
     | 40 <= t && t <= 59 = (b .&. c) .|. (b .&. d) .|. (c .&. d)
     -- f(t;B,C,D) = B XOR C XOR D
     | otherwise = foldl' (\acc x -> xor acc x) 0 [b, c, d]
-
--- S^n(X)  = (X << n) OR (X >> 32-n)
-circularShift :: Word32 -> Int -> Word32
-circularShift x n = (rotateL x n) .|. (rotateR x (32 - n))
 
 getK :: Int -> Word32
 getK i
@@ -44,7 +41,7 @@ getW t w
                   w!!(t-8),
                   w!!(t-14),
                   w!!(t-16)]
-        let v = circularShift (foldl' (\acc x -> xor acc x) 0 ws) 1
+        let v = circularShiftL (foldl' (\acc x -> xor acc x) 0 ws) 1
         (take t w) ++ [v] ++ (drop t w)
 
 {-
@@ -65,8 +62,8 @@ processW t w digest = do
     let c = digest!!2
     let d = digest!!3
     let e = digest!!4
-    let newA = (circularShift a 5) + (f t b c d) + e + (w!!t) + (getK t)
-    let newC = circularShift b 30
+    let newA = (circularShiftL a 5) + (f t b c d) + e + (w!!t) + (getK t)
+    let newC = circularShiftL b 30
     let newDigest = [newA, a, newC, c, d]
     trace'' "[t=%d] %s" t (show newDigest) $ newDigest
 

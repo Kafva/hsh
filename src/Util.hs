@@ -10,7 +10,9 @@ module Util (
     padSha1Input,
     showMd5Digest,
     showSha1Digest,
-    showSha256Digest
+    showSha256Digest,
+    circularShiftL,
+    circularShiftR
 ) where
 
 import Types (Md5Digest, Sha1Digest, Sha256Digest, Block)
@@ -166,3 +168,10 @@ padInput bytes = if (mod (length bytes) 64) /= (64-8)
                  then padInput $ bytes ++ [0x0]
                  else bytes
 
+-- (X << n) OR (X >> 32-n)
+circularShiftL :: Word32 -> Int -> Word32
+circularShiftL x n = (rotateL x n) .|. (rotateR x (32 - n))
+
+-- (X >> n) OR (X << 32-n)
+circularShiftR :: Word32 -> Int -> Word32
+circularShiftR x n = (rotateR x n) .|. (rotateL x (32 - n))

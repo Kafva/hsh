@@ -1,5 +1,5 @@
 {- Compile time executed functions -}
-module Template (programVersion, md5Table, sha256Table) where
+module Template (programVersion, md5Table, sha256Table, sha256InitialDigest) where
 
 import System.Process (readProcess)
 import Language.Haskell.TH
@@ -30,15 +30,15 @@ primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53,
           181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241,
           251, 257, 263, 269, 271, 277, 281, 283, 293, 307, 311]
 
-cubeRootConstant :: Double -> Integer -> Integer
-cubeRootConstant p cnt = do
-    let cubeRoot =  p ** (1/3)
-    let decimalPart = cubeRoot - (int2Double (floor cubeRoot))
+sha2Constant :: Double -> Double -> Integer -> Integer
+sha2Constant p n hexcnt = do
+    let rootN =  p ** (1/n)
+    let decimalPart = rootN - (int2Double (floor rootN))
 
-    -- Shift `cnt` digits to the left so that they no longer reside behind the 
+    -- Shift `hexcnt` digits to the left so that they no longer reside behind the 
     -- decimal '.', note that we expand with 16 as the base to get the hex 
     -- representation of each digit.
-    floor $ decimalPart * (16^cnt)
+    floor $ decimalPart * (16^hexcnt)
 
 {-
  -
@@ -64,6 +64,9 @@ cubeRootConstant p cnt = do
  -  sum(...) ~= 0.2599210...
  -
  - https://crypto.stackexchange.com/a/41501/95946
- - -}
+ -}
 sha256Table :: Q Exp
-sha256Table = lift $ map (\p -> cubeRootConstant p 8) primes
+sha256Table = lift $ map (\p -> sha2Constant p 3 8) primes
+
+sha256InitialDigest :: Q Exp
+sha256InitialDigest = lift $ map (\p -> sha2Constant p 2 8) (take 8 primes)
