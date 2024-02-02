@@ -5,9 +5,21 @@ module Sha256 (hash) where
 import Control.Monad.Reader
 import Data.Foldable (foldl', foldlM)
 import Data.Binary (Word8, Word32)
-import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR)
+--
+-- XXX: The rotate* functions do not work as you would expect for
+-- Word datatypes:
+--
+-- rotateR (24 :: Word32) 10
+--  => 0b110000000000000000000000000
+-- rotateR 24 10
+--  => 0
+-- shiftR (24 :: Word32) 10
+--  => 0
+--
+--
+import Data.Bits ((.&.), (.|.), complement, xor, rotateL, shiftL, shiftR)
 import Log (trace', trace'')
-import Types (Config, Block, Sha256Digest)
+import Types (Config, Block, Sha256Digest, Sha256ArrayW)
 import Numeric (showHex)
 import Util (padSha1Input,
              word8ArrayToHexArray,
@@ -25,40 +37,104 @@ ch x y z = xor  (x .&. y) ((complement x) .&. z)
 
 -- MAJ( x, y, z) = (x AND y) XOR (x AND z) XOR (y AND z)
 maj :: Word32 -> Word32 -> Word32 -> Word32
-maj x y z = foldl' (\acc lhs -> xor acc lhs) 0 
-                   [(x .&. y), (x .&. z), (y .&. z)] 
+maj x y z = foldl' (\acc rhs -> xor acc rhs) 0
+                   [(x .&. y), (x .&. z), (y .&. z)]
 
 -- BSIG0(x) = ROTR^2(x) XOR ROTR^13(x) XOR ROTR^22(x)
 bsig0 :: Word32 -> Word32
-bsig0 x = foldl' (\acc lhs -> xor acc lhs) 0
-                 [(circularShiftR x 2), 
-                  (circularShiftR x 13), 
+bsig0 x = foldl' (\acc rhs -> xor acc rhs) 0
+                 [(circularShiftR x 2),
+                  (circularShiftR x 13),
                   (circularShiftR x 22)]
 
 -- BSIG1(x) = ROTR^6(x) XOR ROTR^11(x) XOR ROTR^25(x)
 bsig1 :: Word32 -> Word32
-bsig1 x = foldl' (\acc lhs -> xor acc lhs) 0
-                 [(circularShiftR x 6), 
-                  (circularShiftR x 11), 
+bsig1 x = foldl' (\acc rhs -> xor acc rhs) 0
+                 [(circularShiftR x 6),
+                  (circularShiftR x 11),
                   (circularShiftR x 25)]
 
 -- SSIG0(x) = ROTR^7(x) XOR ROTR^18(x) XOR SHR^3(x)
 ssig0 :: Word32 -> Word32
-ssig0 x = foldl' (\acc lhs -> xor acc lhs) 0
-                 [(circularShiftR x 7), 
-                  (circularShiftR x 18), 
-                  (rotateR x 3)]
+ssig0 x = foldl' (\acc rhs -> xor acc rhs) 0
+                 [(circularShiftR x 7),
+                  (circularShiftR x 18),
+                  (shiftR x 3)]
 
 -- SSIG1(x) = ROTR^17(x) XOR ROTR^19(x) XOR SHR^10(x)
 ssig1 :: Word32 -> Word32
-ssig1 x = foldl' (\acc lhs -> xor acc lhs) 0
-                 [(circularShiftR x 17), 
-                  (circularShiftR x 19), 
-                  (rotateR x 10)]
+-- ssig1 x = foldl' (\acc rhs -> xor acc rhs) 0
+--                  [(circularShiftR x 17),
+--                   (circularShiftR x 19),
+--                   (shiftR x 10)]
+
+-- ssig1 x = xor (xor (circularShiftR x 17) (circularShiftR x 19)) (shiftR x 10)
+ssig1 x = shiftR 24 10
+
+{-
+ - T1 = h + BSIG1(e) + CH(e,f,g) + Kt + Wt
+ - T2 = BSIG0(a) + MAJ(a,b,c)
+ - h = g
+ - g = f
+ - f = e
+ - e = d + T1
+ - d = c
+ - c = b
+ - b = a
+ - a = T1 + T2
+ -
+ -}
+processW :: Int -> Sha256ArrayW -> Sha256Digest -> Reader Config Sha256Digest
+processW t w digest = do
+    let a = digest!!0
+    let b = digest!!1
+    let c = digest!!2
+    let d = digest!!3
+    let e = digest!!4
+    let f = digest!!5
+    let g = digest!!6
+    let h = digest!!7
+    let t1 = foldl' (+) 0 [h,
+                           bsig1 e,
+                           ch e f g,
+                           $(sha256Table)!!t,
+                           w!!t]
+    let t2 = (bsig0 a) + (maj a b c)
+    let newDigest = [t1 + t2,
+                     a,
+                     b,
+                     c,
+                     d + t1,
+                     e,
+                     f,
+                     g]
+    trace'' "[t=%d] %s" t (show newDigest) $ newDigest
+
+
+-- Wt = SSIG1(W(t-2)) + W(t-7) + SSIG0(w(t-15)) + W(t-16)
+getW :: Int -> Sha256ArrayW -> Sha256ArrayW
+getW t w = do
+    -- let v = foldl' (+) 0 [ssig1 (w!!(t-2)),
+    --                       w!!(t-7),
+    --                       ssig0 (w!!(t-15)),
+    --                       w!!(t-16)]
+    let v = ssig1 24
+    (take t w) ++ [v] ++ (drop t w)
 
 
 processBlock :: Sha256Digest -> Block -> Reader Config Sha256Digest
-processBlock digest block = return digest
+processBlock digest block = do
+    -- Initialise the first 16 slots of W with the values from the current block
+    -- and calculate the rest.
+    let startW :: Sha256ArrayW = block ++ (replicate (64-16) 0)
+    --let arrW = foldl' (\w t -> getW t w) startW [16..63]
+    let w1 = getW 16 startW
+    let w2 = getW 17 w1
+
+    trace' "w: %s" (show w2) digest
+    -- digestResult <- foldlM (\d t -> processW t arrW d) digest [0..63]
+
+    -- return $ zipWith (+) digest digestResult
 
 {-
  - https://www.ietf.org/rfc/rfc6234.txt

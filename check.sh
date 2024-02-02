@@ -25,7 +25,11 @@ _check_sha256() {
     /usr/bin/time sha256sum < $INPUTFILE
 
     info "Sha256 (RFC):"
-    echo TODO
+    if [ -d ../RFC-6234 ]; then
+        (cd ../RFC-6234 && make && ./shatest -s "$(cat $INPUTFILE)" -h2)
+    else
+        echo "Clone https://github.com/Madricas/RFC-6234.git into ../RFC-6234"
+    fi
 }
 
 ALG="$1"

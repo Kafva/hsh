@@ -1,5 +1,8 @@
 {- Compile time executed functions -}
-module Template (programVersion, md5Table, sha256Table, sha256InitialDigest) where
+module Template (programVersion,
+                 md5Table,
+                 sha256Table,
+                 sha256InitialDigest) where
 
 import System.Process (readProcess)
 import Language.Haskell.TH
@@ -35,15 +38,15 @@ sha2Constant p n hexcnt = do
     let rootN =  p ** (1/n)
     let decimalPart = rootN - (int2Double (floor rootN))
 
-    -- Shift `hexcnt` digits to the left so that they no longer reside behind the 
-    -- decimal '.', note that we expand with 16 as the base to get the hex 
+    -- Shift `hexcnt` digits to the left so that they no longer reside behind the
+    -- decimal '.', note that we expand with 16 as the base to get the hex
     -- representation of each digit.
     floor $ decimalPart * (16^hexcnt)
 
 {-
  -
- - Generate the constants used in SHA224-256, 
- - These are derived from the decimal part (i.e. the digits after the decimal 
+ - Generate the constants used in SHA224-256,
+ - These are derived from the decimal part (i.e. the digits after the decimal
  - point '.') of the cube root of the first 80 primes.
  - SHA224-256 use the first 32 bits while SHA384-512 use the first 64 bits of
  - this value (the current approach does not have enough precision to get all 64
