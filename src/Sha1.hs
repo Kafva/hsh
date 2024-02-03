@@ -3,7 +3,7 @@ module Sha1 (hash) where
 import Control.Monad.Reader
 import Data.Foldable (foldl', foldlM)
 import Data.Binary (Word8, Word32)
-import Data.Bits ((.&.), (.|.), complement, xor)
+import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
 import Log (trace', trace'')
 import Types (Config, Sha1Digest, Sha1ArrayW, Block)
 import Util (padSha1Input,
@@ -11,8 +11,7 @@ import Util (padSha1Input,
              word8toWord32ArrayBE,
              word32ArrayToBlocks,
              word32ArrayToWord8ArrayBE,
-             showSha1Digest,
-             circularShiftL)
+             showSha1Digest)
 
 f :: Int -> Word32 -> Word32 -> Word32 -> Word32
 f t b c d
@@ -41,7 +40,7 @@ getW t w
                   w!!(t-8),
                   w!!(t-14),
                   w!!(t-16)]
-        let v = circularShiftL (foldl' (\acc x -> xor acc x) 0 ws) 1
+        let v = rotateL (foldl' (\acc x -> xor acc x) 0 ws) 1
         (take t w) ++ [v] ++ (drop t w)
 
 {-
@@ -62,8 +61,8 @@ processW t w digest = do
     let c = digest!!2
     let d = digest!!3
     let e = digest!!4
-    let newA = (circularShiftL a 5) + (f t b c d) + e + (w!!t) + (getK t)
-    let newC = circularShiftL b 30
+    let newA = (rotateL a 5) + (f t b c d) + e + (w!!t) + (getK t)
+    let newC = rotateL b 30
     let newDigest = [newA, a, newC, c, d]
     trace'' "[t=%d] %s" t (show newDigest) $ newDigest
 

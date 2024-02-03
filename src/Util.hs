@@ -10,14 +10,12 @@ module Util (
     padSha1Input,
     showMd5Digest,
     showSha1Digest,
-    showSha256Digest,
-    circularShiftL,
-    circularShiftR
+    showSha256Digest
 ) where
 
 import Types (Md5Digest, Sha1Digest, Sha256Digest, Block)
 import Data.Binary (Word8, Word32, Word64)
-import Data.Bits ((.|.), rotateR, rotateL)
+import Data.Bits ((.|.), shiftR, shiftL)
 import Numeric (showHex)
 import Data.Char(toLower)
 
@@ -45,35 +43,35 @@ word8ArrayToHexString arr maxlen
     | otherwise = concatMap (word8ToHexString "") (take maxlen arr) ++ "..."
 
 word32ToWord8ArrayBE :: Word32 -> [Word8]
-word32ToWord8ArrayBE word = [fromIntegral (rotateR word 24),
-                             fromIntegral (rotateR word 16),
-                             fromIntegral (rotateR word 8),
+word32ToWord8ArrayBE word = [fromIntegral (shiftR word 24),
+                             fromIntegral (shiftR word 16),
+                             fromIntegral (shiftR word 8),
                              fromIntegral word]
 
 word32ToWord8ArrayLE :: Word32 -> [Word8]
 word32ToWord8ArrayLE word = [fromIntegral word,
-                             fromIntegral (rotateR word 8),
-                             fromIntegral (rotateR word 16),
-                             fromIntegral (rotateR word 24)]
+                             fromIntegral (shiftR word 8),
+                             fromIntegral (shiftR word 16),
+                             fromIntegral (shiftR word 24)]
 
 word64ToWord8ArrayLE :: Word64 -> [Word8]
 word64ToWord8ArrayLE word = [fromIntegral word,
-                             fromIntegral (rotateR word 8),
-                             fromIntegral (rotateR word 16),
-                             fromIntegral (rotateR word 24),
-                             fromIntegral (rotateR word 32),
-                             fromIntegral (rotateR word 40),
-                             fromIntegral (rotateR word 48),
-                             fromIntegral (rotateR word 56)]
+                             fromIntegral (shiftR word 8),
+                             fromIntegral (shiftR word 16),
+                             fromIntegral (shiftR word 24),
+                             fromIntegral (shiftR word 32),
+                             fromIntegral (shiftR word 40),
+                             fromIntegral (shiftR word 48),
+                             fromIntegral (shiftR word 56)]
 
 word64ToWord8ArrayBE :: Word64 -> [Word8]
-word64ToWord8ArrayBE word = [fromIntegral (rotateR word 56),
-                             fromIntegral (rotateR word 48),
-                             fromIntegral (rotateR word 40),
-                             fromIntegral (rotateR word 32),
-                             fromIntegral (rotateR word 24),
-                             fromIntegral (rotateR word 16),
-                             fromIntegral (rotateR word 8),
+word64ToWord8ArrayBE word = [fromIntegral (shiftR word 56),
+                             fromIntegral (shiftR word 48),
+                             fromIntegral (shiftR word 40),
+                             fromIntegral (shiftR word 32),
+                             fromIntegral (shiftR word 24),
+                             fromIntegral (shiftR word 16),
+                             fromIntegral (shiftR word 8),
                              fromIntegral word]
 
 -- Convert an array of 4 bytes into a Little-endian 32-bit word
@@ -83,9 +81,9 @@ word8ArrayToWord32LE bytes =
     if length bytes /= 4
     then 0
     else fromIntegral (bytes!!0) .|.
-         (rotateL (fromIntegral $ bytes!!1) 8) .|.
-         (rotateL (fromIntegral $ bytes!!2) 16) .|.
-         (rotateL (fromIntegral $ bytes!!3) 24)
+         (shiftL (fromIntegral $ bytes!!1) 8) .|.
+         (shiftL (fromIntegral $ bytes!!2) 16) .|.
+         (shiftL (fromIntegral $ bytes!!3) 24)
 
 -- Convert an array of 4 bytes into a Big-endian 32-bit word
 --   [0x44 0x33 0x22 0x11] ---> 0x44332211
@@ -93,9 +91,9 @@ word8ArrayToWord32BE :: [Word8] -> Word32
 word8ArrayToWord32BE bytes =
     if length bytes /= 4
     then 0
-    else (rotateL (fromIntegral $ bytes!!0) 24) .|.
-         (rotateL (fromIntegral $ bytes!!1) 16) .|.
-         (rotateL (fromIntegral $ bytes!!2) 8) .|.
+    else (shiftL (fromIntegral $ bytes!!0) 24) .|.
+         (shiftL (fromIntegral $ bytes!!1) 16) .|.
+         (shiftL (fromIntegral $ bytes!!2) 8) .|.
          fromIntegral (bytes!!3)
 
 -- Split the given array of bytes into a list of 32 byte entries
@@ -167,11 +165,3 @@ padInput :: [Word8] -> [Word8]
 padInput bytes = if (mod (length bytes) 64) /= (64-8)
                  then padInput $ bytes ++ [0x0]
                  else bytes
-
--- (X << n) OR (X >> 32-n)
-circularShiftL :: Word32 -> Int -> Word32
-circularShiftL x n = (rotateL x n) .|. (rotateR x (32 - n))
-
--- (X >> n) OR (X << 32-n)
-circularShiftR :: Word32 -> Int -> Word32
-circularShiftR x n = (rotateR x n) .|. (rotateL x (32 - n))

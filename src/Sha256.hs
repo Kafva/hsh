@@ -6,18 +6,17 @@ import Control.Monad.Reader
 import Data.Foldable (foldl', foldlM)
 import Data.Binary (Word8, Word32)
 --
--- XXX: The rotate* functions do not work as you would expect for
--- Word datatypes:
+-- XXX: rotateL and rotateR are equivilenet to shiftL and shiftR for unbounded
+-- number types like Integer. For Word* types, rotate* acts as a circular
+-- rotation, extending the provided value to fill out all bits.
+-- The shift functions do not use rotation.
 --
--- rotateR (24 :: Word32) 10
---  => 0b110000000000000000000000000
--- rotateR 24 10
---  => 0
--- shiftR (24 :: Word32) 10
---  => 0
+-- (ghci) showBin (rotateR (0x1 :: Word8) 1) ""
+-- "10000000"
+-- (ghci) showBin (shiftR (0x1 :: Word8) 1) ""
+-- "0"
 --
---
-import Data.Bits ((.&.), (.|.), complement, xor, rotateL, shiftL, shiftR)
+import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR, shiftL, shiftR)
 import Log (trace', trace'')
 import Types (Config, Block, Sha256Digest, Sha256ArrayW)
 import Numeric (showHex)
@@ -26,9 +25,7 @@ import Util (padSha1Input,
              word8toWord32ArrayBE,
              word32ArrayToBlocks,
              word32ArrayToWord8ArrayBE,
-             showSha256Digest,
-             circularShiftL,
-             circularShiftR)
+             showSha256Digest)
 import Template (sha256Table, sha256InitialDigest)
 
 -- CH( x, y, z) = (x AND y) XOR ( (NOT x) AND z)
@@ -43,32 +40,32 @@ maj x y z = foldl' (\acc rhs -> xor acc rhs) 0
 -- BSIG0(x) = ROTR^2(x) XOR ROTR^13(x) XOR ROTR^22(x)
 bsig0 :: Word32 -> Word32
 bsig0 x = foldl' (\acc rhs -> xor acc rhs) 0
-                 [(circularShiftR x 2),
-                  (circularShiftR x 13),
-                  (circularShiftR x 22)]
+                 [(rotateR x 2),
+                  (rotateR x 13),
+                  (rotateR x 22)]
 
 -- BSIG1(x) = ROTR^6(x) XOR ROTR^11(x) XOR ROTR^25(x)
 bsig1 :: Word32 -> Word32
 bsig1 x = foldl' (\acc rhs -> xor acc rhs) 0
-                 [(circularShiftR x 6),
-                  (circularShiftR x 11),
-                  (circularShiftR x 25)]
+                 [(rotateR x 6),
+                  (rotateR x 11),
+                  (rotateR x 25)]
 
 -- SSIG0(x) = ROTR^7(x) XOR ROTR^18(x) XOR SHR^3(x)
 ssig0 :: Word32 -> Word32
 ssig0 x = foldl' (\acc rhs -> xor acc rhs) 0
-                 [(circularShiftR x 7),
-                  (circularShiftR x 18),
+                 [(rotateR x 7),
+                  (rotateR x 18),
                   (shiftR x 3)]
 
 -- SSIG1(x) = ROTR^17(x) XOR ROTR^19(x) XOR SHR^10(x)
 ssig1 :: Word32 -> Word32
 -- ssig1 x = foldl' (\acc rhs -> xor acc rhs) 0
---                  [(circularShiftR x 17),
---                   (circularShiftR x 19),
+--                  [(rotateR x 17),
+--                   (rotateR x 19),
 --                   (shiftR x 10)]
 
--- ssig1 x = xor (xor (circularShiftR x 17) (circularShiftR x 19)) (shiftR x 10)
+-- ssig1 x = xor (xor (rotateR x 17) (rotateR x 19)) (shiftR x 10)
 ssig1 x = shiftR 24 10
 
 {-
