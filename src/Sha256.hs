@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Sha256 (hash) where
+module Sha256 (hash256, hash224) where
 
 import Control.Monad.Reader
 import Data.Foldable (foldl', foldlM)
@@ -137,8 +137,22 @@ processBlock digest block = do
  - "0"
  -
  -}
-hash :: [Word8] -> Reader Config [Word8]
-hash bytes = do
+hash256 :: [Word8] -> Reader Config [Word8]
+hash256 bytes = do
+    -- * Pad the input (identical approach to SHA1)
+    let paddedBytes = padSha1Input bytes
+    blocks :: [Block] <- trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
+                         (word32ArrayToBlocks $ word8toWord32ArrayBE paddedBytes)
+
+    let digest :: Sha256Digest = $(sha256InitialDigest)
+
+    finalDigest <- foldlM processBlock digest blocks
+
+    trace' "output: %s" (showSha256Digest finalDigest) $
+        word32ArrayToWord8ArrayBE finalDigest
+
+hash224 :: [Word8] -> Reader Config [Word8]
+hash224 bytes = do
     -- * Pad the input (identical approach to SHA1)
     let paddedBytes = padSha1Input bytes
     blocks :: [Block] <- trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
