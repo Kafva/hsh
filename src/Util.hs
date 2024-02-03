@@ -8,12 +8,10 @@ module Util (
     word32ArrayToWord8ArrayBE,
     padMd5Input,
     padSha1Input,
-    showMd5Digest,
-    showSha1Digest,
-    showSha256Digest
+    showDigestArray
 ) where
 
-import Types (Md5Digest, Sha1Digest, Sha256Digest, Block)
+import Types (Block)
 import Data.Binary (Word8, Word32, Word64)
 import Data.Bits ((.|.), shiftR, shiftL)
 import Numeric (showHex)
@@ -127,14 +125,8 @@ word32ArrayToWord8ArrayLE = concatMap word32ToWord8ArrayLE
 word32ArrayToWord8ArrayBE :: [Word32] -> [Word8]
 word32ArrayToWord8ArrayBE = concatMap word32ToWord8ArrayBE
 
-showMd5Digest :: Md5Digest -> String
-showMd5Digest digest = word8ArrayToHexArray (word32ArrayToWord8ArrayLE digest) 16
-
-showSha1Digest :: Sha1Digest -> String
-showSha1Digest digest = word8ArrayToHexArray (word32ArrayToWord8ArrayBE digest) 20
-
-showSha256Digest :: Sha256Digest -> String
-showSha256Digest digest = word8ArrayToHexArray (word32ArrayToWord8ArrayBE digest) 32
+showDigestArray :: [Word32] -> Int -> String
+showDigestArray digest byteCount = word8ArrayToHexArray (word32ArrayToWord8ArrayBE digest) byteCount
 
 padSha1Input :: [Word8] -> [Word8]
 padSha1Input bytes = do

@@ -58,11 +58,20 @@ run_sha224() {
 verify_ok() {
     local alg="$1"
     local expected="$2"
-    local hsh_out="$($HSH -a $alg < $INPUTFILE)"
+    local tmpfile=$(mktemp)
+
+    { time $HSH -a $alg < $INPUTFILE; } &> $tmpfile
+    local hsh_out=$(sed -n '1p' $tmpfile)
+    local time_taken=$(sed -n '2p' $tmpfile)
+
+    rm $tmpfile
+
     if [ "$hsh_out" = "$expected" ]; then
-        printf "[ \033[92m OK \033[0m ] $alg $hsh_out\n"
+        printf "[ \033[92m OK \033[0m ] %-10s %-7s %s\n" \
+            "$time_taken" $alg "$hsh_out"
     else
-        printf "[ \033[91mFAIL\033[0m ] $alg $hsh_out\n"
+        printf "[ \033[91mFAIL\033[0m ] %-10s %-7s %s\n" \
+            "$time_taken" $alg "$hsh_out"
         exit 1
     fi
 }
@@ -70,16 +79,17 @@ verify_ok() {
 CMDTYPE="$1"
 ALG="$2"
 INPUTFILE="${3}"
-export TIMEFORMAT="time:    %Rs"
 
 cabal build -v0
 HSH=$(find dist-newstyle -type f -name hsh)
 
 case "$CMDTYPE" in
 verify)
+    export TIMEFORMAT="%Rs"
+
     if [ ! -f "$INPUTFILE" ]; then
         INPUTFILE=$(mktemp)
-        dd if=/dev/random of=$INPUTFILE bs=1K count=1 2> /dev/null
+        dd if=/dev/random of=$INPUTFILE bs=1K count=200 2> /dev/null
     fi
 
     verify_ok md5 "$(md5 < $INPUTFILE)"
@@ -88,6 +98,8 @@ verify)
     verify_ok sha256 "$(sha256sum < $INPUTFILE | awk '{print $1}')"
 ;;
 *)
+    export TIMEFORMAT="time:    %Rs"
+
     cmdname="${CMDTYPE}_${ALG}"
     typing="$(type "$cmdname" 2> /dev/null | head -n1 || :)"
     if [ "$typing" = "$cmdname is a function" ]; then

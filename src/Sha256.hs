@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Sha256 (hash256, hash224) where
+module Sha256 (hash) where
 
 import Control.Monad.Reader
 import Data.Foldable (foldl', foldlM)
@@ -13,7 +13,7 @@ import Util (padSha1Input,
              word8toWord32ArrayBE,
              word32ArrayToBlocks,
              word32ArrayToWord8ArrayBE,
-             showSha256Digest)
+             showDigestArray)
 import Template (sha256Table, sha256InitialDigest)
 
 -- CH( x, y, z) = (x AND y) XOR ( (NOT x) AND z)
@@ -116,15 +116,13 @@ processBlock digest block = do
 {-
  - https://www.ietf.org/rfc/rfc6234.txt
  -
- - SHA224-256 operates on
+ - SHA256: 32 byte digest
+ - SHA224: 28 byte digest
+ - Both operate on
  -  * 32-bit words
  -  * 512-bit blocks
- -  * 32 byte digest
  -
- - SHA384-512 operate on
- -  * 64-bit words
- -  * 1024-bit blocks
- -  * 64 byte digest
+ - SHA224 only differs in the initial values used and the output length.
  -
  - XXX: rotateL and rotateR are equivalent to shiftL and shiftR for unbounded
  - number types like Integer. For Word* types, rotate* acts as a circular
@@ -137,31 +135,26 @@ processBlock digest block = do
  - "0"
  -
  -}
-hash256 :: [Word8] -> Reader Config [Word8]
-hash256 bytes = do
+hash :: [Word8] -> Int -> Reader Config [Word8]
+hash bytes digestLength = do
     -- * Pad the input (identical approach to SHA1)
     let paddedBytes = padSha1Input bytes
     blocks :: [Block] <- trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
                          (word32ArrayToBlocks $ word8toWord32ArrayBE paddedBytes)
 
-    let digest :: Sha256Digest = $(sha256InitialDigest)
+    let digest :: Sha256Digest = if digestLength == 32
+                                 then $(sha256InitialDigest)
+                                 else [0xc1059ed8,
+                                       0x367cd507,
+                                       0x3070dd17,
+                                       0xf70e5939,
+                                       0xffc00b31,
+                                       0x68581511,
+                                       0x64f98fa7,
+                                       0xbefa4fa4]
 
-    finalDigest <- foldlM processBlock digest blocks
+    processedDigest <- foldlM processBlock digest blocks
+    let finalDigest = take (div digestLength 4) processedDigest
 
-    trace' "output: %s" (showSha256Digest finalDigest) $
+    trace' "output: %s" (showDigestArray finalDigest digestLength) $
         word32ArrayToWord8ArrayBE finalDigest
-
-hash224 :: [Word8] -> Reader Config [Word8]
-hash224 bytes = do
-    -- * Pad the input (identical approach to SHA1)
-    let paddedBytes = padSha1Input bytes
-    blocks :: [Block] <- trace' "input: %s" (word8ArrayToHexArray paddedBytes 64) $
-                         (word32ArrayToBlocks $ word8toWord32ArrayBE paddedBytes)
-
-    let digest :: Sha256Digest = $(sha256InitialDigest)
-
-    finalDigest <- foldlM processBlock digest blocks
-
-    trace' "output: %s" (showSha256Digest finalDigest) $
-        word32ArrayToWord8ArrayBE finalDigest
-

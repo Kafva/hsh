@@ -14,7 +14,7 @@ import Util (word8ArrayToHexArray,
              word32ArrayToWord8ArrayLE,
              word32ArrayToBlocks,
              padMd5Input,
-             showMd5Digest)
+             showDigestArray)
 
 -- Type signature for each `digestNew` function
 type NewDigestSignature = Word32 -> Word32 -> Word32 -> Word32 ->
@@ -41,26 +41,26 @@ digestNewA :: NewDigestSignature
 digestNewA a b c d blk auxFunction k s i = do
     let newA = auxRound a b c d auxFunction blk k s i
     let newDigest = [newA, b, c, d]
-    trace'' "ABCD [i=%d]: %s" i (showMd5Digest newDigest) $ newDigest
+    trace'' "ABCD [i=%d]: %s" i (showDigestArray newDigest 16) $ newDigest
 
 digestNewB :: NewDigestSignature
 digestNewB a b c d blk auxFunction k s i = do
     let newB = auxRound b c d a auxFunction blk k s i
     let newDigest = [a, newB, c, d]
-    trace'' "BCDA [i=%d]: %s" i (showMd5Digest newDigest) $ newDigest
+    trace'' "BCDA [i=%d]: %s" i (showDigestArray newDigest 16) $ newDigest
 
 
 digestNewC :: NewDigestSignature
 digestNewC a b c d blk auxFunction k s i = do
     let newC = auxRound c d a b auxFunction blk k s i
     let newDigest = [a, b, newC, d]
-    trace'' "CDAB [i=%d]: %s" i (showMd5Digest newDigest) $ newDigest
+    trace'' "CDAB [i=%d]: %s" i (showDigestArray newDigest 16) $ newDigest
 
 digestNewD :: NewDigestSignature
 digestNewD a b c d blk auxFunction k s i = do
     let newD = auxRound d a b c auxFunction blk k s i
     let newDigest = [a, b, c, newD]
-    trace'' "DABC [i=%d]: %s" i (showMd5Digest newDigest) $ newDigest
+    trace'' "DABC [i=%d]: %s" i (showDigestArray newDigest 16) $ newDigest
 
 {-
  - a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
@@ -167,5 +167,5 @@ hash bytes = do
     -- RFC, updating one slot in the digest for each `digestNew` call.
     finalDigest <- foldlM processBlock startDigest blocks
 
-    trace' "output: %s" (showMd5Digest finalDigest) $
+    trace' "output: %s" (showDigestArray finalDigest 16) $
         word32ArrayToWord8ArrayLE finalDigest

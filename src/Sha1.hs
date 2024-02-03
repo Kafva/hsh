@@ -11,7 +11,7 @@ import Util (padSha1Input,
              word8toWord32ArrayBE,
              word32ArrayToBlocks,
              word32ArrayToWord8ArrayBE,
-             showSha1Digest)
+             showDigestArray)
 
 f :: Int -> Word32 -> Word32 -> Word32 -> Word32
 f t b c d
@@ -100,6 +100,6 @@ hash bytes = do
     -- * Process each block
     finalDigest <- foldlM processBlock digest blocks
 
-    trace' "output: %s" (showSha1Digest finalDigest) $
+    trace' "output: %s" (showDigestArray finalDigest 20) $
         word32ArrayToWord8ArrayBE finalDigest
 

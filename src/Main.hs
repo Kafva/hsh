@@ -96,11 +96,11 @@ main = do
             putStrLn $ word8ArrayToHexString digest 20
 
         "sha224" -> do
-            let digest = runReader (Sha256.hash224 bytes) opts
-            putStrLn $ word8ArrayToHexString digest 32
+            let digest = runReader (Sha256.hash bytes 28) opts
+            putStrLn $ word8ArrayToHexString digest 28
 
         "sha256" -> do
-            let digest = runReader (Sha256.hash256 bytes) opts
+            let digest = runReader (Sha256.hash bytes 32) opts
             putStrLn $ word8ArrayToHexString digest 32
 
         alg ->
