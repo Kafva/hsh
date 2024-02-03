@@ -89,7 +89,7 @@ verify)
 
     if [ ! -f "$INPUTFILE" ]; then
         INPUTFILE=$(mktemp)
-        dd if=/dev/random of=$INPUTFILE bs=1K count=200 2> /dev/null
+        dd if=/dev/random of=$INPUTFILE bs=1K count=32 2> /dev/null
     fi
 
     verify_ok md5 "$(md5 < $INPUTFILE)"

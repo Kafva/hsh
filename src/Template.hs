@@ -36,7 +36,7 @@ primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53,
 sha2Constant :: Double -> Double -> Integer -> Integer
 sha2Constant p n hexcnt = do
     let rootN =  p ** (1/n)
-    let decimalPart = rootN - (int2Double (floor rootN))
+    let decimalPart = rootN - int2Double (floor rootN)
 
     -- Shift `hexcnt` digits to the left so that they no longer reside behind the
     -- decimal '.', note that we expand with 16 as the base to get the hex

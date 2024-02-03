@@ -10,7 +10,7 @@ import Types (Config(..))
 import Util (word8ArrayToHexString, word8ArrayToHexArray)
 import Log (debug')
 
-import GHC.Base (when)
+import Control.Monad (unless)
 import System.IO (hPutStrLn, stderr)
 import System.Environment (getProgName, getArgs)
 import System.Console.GetOpt
@@ -72,7 +72,7 @@ main = do
     let (optionsFn, _, errors) = getOpt RequireOrder options args
 
     -- Check for command line parsing errors
-    when ((length errors) > 0) $ do
+    unless (null errors) $ do
         for_ errors putStr
         exitFailure
 

@@ -29,7 +29,7 @@ word8ArrayToHexArray [] _ = "[]"
 word8ArrayToHexArray arr maxlen = do
     let s = concatMap ((++ ", ") . word8ToHexString "0x")
                       (take maxlen arr)
-    let suffix = if (length arr) <= maxlen
+    let suffix = if length arr <= maxlen
                     then ""
                     else " ... "
     "[" ++ take (length s - 2) s ++ suffix ++ "]"
@@ -79,9 +79,9 @@ word8ArrayToWord32LE bytes =
     if length bytes /= 4
     then 0
     else fromIntegral (bytes!!0) .|.
-         (shiftL (fromIntegral $ bytes!!1) 8) .|.
-         (shiftL (fromIntegral $ bytes!!2) 16) .|.
-         (shiftL (fromIntegral $ bytes!!3) 24)
+         shiftL (fromIntegral $ bytes!!1) 8 .|.
+         shiftL (fromIntegral $ bytes!!2) 16 .|.
+         shiftL (fromIntegral $ bytes!!3) 24
 
 -- Convert an array of 4 bytes into a Big-endian 32-bit word
 --   [0x44 0x33 0x22 0x11] ---> 0x44332211
@@ -89,9 +89,9 @@ word8ArrayToWord32BE :: [Word8] -> Word32
 word8ArrayToWord32BE bytes =
     if length bytes /= 4
     then 0
-    else (shiftL (fromIntegral $ bytes!!0) 24) .|.
-         (shiftL (fromIntegral $ bytes!!1) 16) .|.
-         (shiftL (fromIntegral $ bytes!!2) 8) .|.
+    else shiftL (fromIntegral $ bytes!!0) 24 .|.
+         shiftL (fromIntegral $ bytes!!1) 16 .|.
+         shiftL (fromIntegral $ bytes!!2) 8 .|.
          fromIntegral (bytes!!3)
 
 -- Split the given array of bytes into a list of 32 byte entries
@@ -116,7 +116,7 @@ word32ArrayToBlocks arr = do
     if mod (length arr) 16 /= 0
     then []
     else
-        (take 16 arr)
+        take 16 arr
         : word32ArrayToBlocks (drop 16 arr)
 
 word32ArrayToWord8ArrayLE :: [Word32] -> [Word8]
@@ -131,14 +131,12 @@ showDigestArray digest byteCount = word8ArrayToHexArray (word32ArrayToWord8Array
 padSha1Input :: [Word8] -> [Word8]
 padSha1Input bytes = do
     let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
-    padInput (bytes ++ [0b1000_0000]) ++
-             (word64ToWord8ArrayBE unpaddedBitCount)
+    padInput (bytes ++ [0b1000_0000]) ++ word64ToWord8ArrayBE unpaddedBitCount
 
 padMd5Input :: [Word8] -> [Word8]
 padMd5Input bytes = do
     let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
-    padInput (bytes ++ [0b1000_0000]) ++
-             (word64ToWord8ArrayLE unpaddedBitCount)
+    padInput (bytes ++ [0b1000_0000]) ++ word64ToWord8ArrayLE unpaddedBitCount
 
 {-
  - SHA1 and MD5 use the same padding method,
@@ -154,6 +152,6 @@ padMd5Input bytes = do
  -
  -}
 padInput :: [Word8] -> [Word8]
-padInput bytes = if (mod (length bytes) 64) /= (64-8)
+padInput bytes = if mod (length bytes) 64 /= (64-8)
                  then padInput $ bytes ++ [0x0]
                  else bytes

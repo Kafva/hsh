@@ -11,15 +11,15 @@ import Debug.Trace
 trace' :: String -> PrintfArg a => a -> b -> Reader Config b
 trace' fmt arg toRun = do
     cfg <- ask
-    if (debug cfg)
-    then return $ trace (debugPrintf' fmt arg) $ toRun
+    if debug cfg
+    then return $ trace (debugPrintf' fmt arg)toRun
     else return toRun
 
 trace'' :: String -> PrintfArg a => a -> PrintfArg b => b -> c -> Reader Config c
 trace'' fmt arg1 arg2 toRun = do
     cfg <- ask
-    if (debug cfg)
-    then return $ trace (debugPrintf'' fmt arg1 arg2) $ toRun
+    if debug cfg
+    then return $ trace (debugPrintf'' fmt arg1 arg2) toRun
     else return toRun
 
 
