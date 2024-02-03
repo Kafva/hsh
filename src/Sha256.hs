@@ -5,18 +5,7 @@ module Sha256 (hash) where
 import Control.Monad.Reader
 import Data.Foldable (foldl', foldlM)
 import Data.Binary (Word8, Word32)
---
--- XXX: rotateL and rotateR are equivilenet to shiftL and shiftR for unbounded
--- number types like Integer. For Word* types, rotate* acts as a circular
--- rotation, extending the provided value to fill out all bits.
--- The shift functions do not use rotation.
---
--- (ghci) showBin (rotateR (0x1 :: Word8) 1) ""
--- "10000000"
--- (ghci) showBin (shiftR (0x1 :: Word8) 1) ""
--- "0"
---
-import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR, shiftL, shiftR)
+import Data.Bits ((.&.), complement, xor, rotateR, shiftR)
 import Log (trace', trace'')
 import Types (Config, Block, Sha256Digest, Sha256ArrayW)
 import Util (padSha1Input,
@@ -113,7 +102,6 @@ getW t w = do
                           w!!(t-16)]
     (take t w) ++ [v] ++ (drop t w)
 
-
 processBlock :: Sha256Digest -> Block -> Reader Config Sha256Digest
 processBlock digest block = do
     -- Initialise the first 16 slots of W with the values from the current block
@@ -138,6 +126,16 @@ processBlock digest block = do
  -  * 1024-bit blocks
  -  * 64 byte digest
  -
+ - XXX: rotateL and rotateR are equivalent to shiftL and shiftR for unbounded
+ - number types like Integer. For Word* types, rotate* acts as a circular
+ - rotation, extending the provided value to fill out all bits.
+ - The shift functions do not use rotation.
+ -
+ - (ghci) showBin (rotateR (0x1 :: Word8) 1) ""
+ - "10000000"
+ - (ghci) showBin (shiftR (0x1 :: Word8) 1) ""
+ - "0"
+ -
  -}
 hash :: [Word8] -> Reader Config [Word8]
 hash bytes = do
@@ -148,7 +146,7 @@ hash bytes = do
 
     let digest :: Sha256Digest = $(sha256InitialDigest)
 
-    finalDigest <- processBlock digest (blocks!!0)
+    finalDigest <- foldlM processBlock digest blocks
 
     trace' "output: %s" (showSha256Digest finalDigest) $
         word32ArrayToWord8ArrayBE finalDigest
