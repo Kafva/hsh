@@ -16,7 +16,7 @@ import System.Environment (getProgName, getArgs)
 import System.Console.GetOpt
 import Data.Foldable (for_)
 import System.Exit (exitFailure, exitSuccess)
-import Control.Monad.Reader
+import Control.Monad.Reader (runReaderT, runReader)
 
 import qualified Data.ByteString as B
 import Data.Word (Word8)

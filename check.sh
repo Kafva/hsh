@@ -92,7 +92,7 @@ verify)
         dd if=/dev/random of=$INPUTFILE bs=1K count=32 2> /dev/null
     fi
 
-    verify_ok md5 "$(md5 < $INPUTFILE)"
+    verify_ok md5 "$(md5sum < $INPUTFILE | awk '{print $1}')"
     verify_ok sha1 "$(sha1sum < $INPUTFILE | awk '{print $1}')"
     verify_ok sha224 "$(sha224sum < $INPUTFILE | awk '{print $1}')"
     verify_ok sha256 "$(sha256sum < $INPUTFILE | awk '{print $1}')"
