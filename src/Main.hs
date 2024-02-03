@@ -26,7 +26,7 @@ defaultOptions = Config {
     help = False,
     version = False,
     debug = False,
-    algorithm = "md5"
+    algorithm = ""
 }
 
 usage :: IO ()
@@ -104,6 +104,8 @@ main = do
             putStrLn $ word8ArrayToHexString digest 32
 
         alg ->
-            putStrLn $ "Invalid algorithm: " ++ alg
+            if alg == ""
+            then usage
+            else putStrLn $ "Invalid algorithm: " ++ alg
 
     exitSuccess
