@@ -19,7 +19,6 @@ import Data.Binary (Word8, Word32)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL, rotateR, shiftL, shiftR)
 import Log (trace', trace'')
 import Types (Config, Block, Sha256Digest, Sha256ArrayW)
-import Numeric (showHex)
 import Util (padSha1Input,
              word8ArrayToHexArray,
              word8toWord32ArrayBE,
@@ -60,13 +59,10 @@ ssig0 x = foldl' (\acc rhs -> xor acc rhs) 0
 
 -- SSIG1(x) = ROTR^17(x) XOR ROTR^19(x) XOR SHR^10(x)
 ssig1 :: Word32 -> Word32
--- ssig1 x = foldl' (\acc rhs -> xor acc rhs) 0
---                  [(rotateR x 17),
---                   (rotateR x 19),
---                   (shiftR x 10)]
-
--- ssig1 x = xor (xor (rotateR x 17) (rotateR x 19)) (shiftR x 10)
-ssig1 x = shiftR 24 10
+ssig1 x = foldl' (\acc rhs -> xor acc rhs) 0
+                 [(rotateR x 17),
+                  (rotateR x 19),
+                  (shiftR x 10)]
 
 {-
  - T1 = h + BSIG1(e) + CH(e,f,g) + Kt + Wt
@@ -111,11 +107,10 @@ processW t w digest = do
 -- Wt = SSIG1(W(t-2)) + W(t-7) + SSIG0(w(t-15)) + W(t-16)
 getW :: Int -> Sha256ArrayW -> Sha256ArrayW
 getW t w = do
-    -- let v = foldl' (+) 0 [ssig1 (w!!(t-2)),
-    --                       w!!(t-7),
-    --                       ssig0 (w!!(t-15)),
-    --                       w!!(t-16)]
-    let v = ssig1 24
+    let v = foldl' (+) 0 [ssig1 (w!!(t-2)),
+                          w!!(t-7),
+                          ssig0 (w!!(t-15)),
+                          w!!(t-16)]
     (take t w) ++ [v] ++ (drop t w)
 
 
@@ -124,14 +119,11 @@ processBlock digest block = do
     -- Initialise the first 16 slots of W with the values from the current block
     -- and calculate the rest.
     let startW :: Sha256ArrayW = block ++ (replicate (64-16) 0)
-    --let arrW = foldl' (\w t -> getW t w) startW [16..63]
-    let w1 = getW 16 startW
-    let w2 = getW 17 w1
+    let arrW = foldl' (\w t -> getW t w) startW [16..63]
 
-    trace' "w: %s" (show w2) digest
-    -- digestResult <- foldlM (\d t -> processW t arrW d) digest [0..63]
+    digestResult <- foldlM (\d t -> processW t arrW d) digest [0..63]
 
-    -- return $ zipWith (+) digest digestResult
+    return $ zipWith (+) digest digestResult
 
 {-
  - https://www.ietf.org/rfc/rfc6234.txt
