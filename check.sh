@@ -77,8 +77,6 @@ verify_ok() {
 }
 
 CMDTYPE="$1"
-ALG="$2"
-INPUTFILE="${3}"
 
 cabal build -v0
 HSH=$(find dist-newstyle -type f -name hsh)
@@ -86,6 +84,7 @@ HSH=$(find dist-newstyle -type f -name hsh)
 case "$CMDTYPE" in
 verify)
     export TIMEFORMAT="%Rs"
+    INPUTFILE="$2"
 
     if [ ! -f "$INPUTFILE" ]; then
         INPUTFILE=$(mktemp)
@@ -99,6 +98,8 @@ verify)
 ;;
 *)
     export TIMEFORMAT="time:    %Rs"
+    ALG="$2"
+    INPUTFILE="$3"
 
     cmdname="${CMDTYPE}_${ALG}"
     typing="$(type "$cmdname" 2> /dev/null | head -n1 || :)"
