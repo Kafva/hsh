@@ -62,7 +62,7 @@ options = [
         Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
             return opt { algorithm = arg }
         ) "algorithm")
-        "Select algorithm [md5,sha1,sha224,sha256]"
+        "Select algorithm [md5,sha1,sha224,sha256,pbkdf2]"
     ]
 
 main :: IO ()
@@ -102,6 +102,10 @@ main = do
         "sha256" -> do
             let digest = runReader (Sha256.hash bytes 32) opts
             putStrLn $ word8ArrayToHexString digest 32
+
+        "pbkdf2" -> do
+            let derivedKey = [0x0]
+            putStrLn $ word8ArrayToHexString derivedKey 32
 
         alg ->
             if alg == ""

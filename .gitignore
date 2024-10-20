@@ -5,6 +5,7 @@
 /md5
 /sha1
 /abc
+/pbkdf
 
 
 # Haskell
