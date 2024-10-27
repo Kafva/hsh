@@ -16,7 +16,7 @@ run_md5() {
     time md5 < $INPUTFILE
 
     info "Md5 (RFC):"
-    clang -w rfc/Md5.c -o Md5
+    clang -w tests/rfc/Md5.c -o Md5
     time ./Md5 < $INPUTFILE
 }
 
@@ -25,7 +25,7 @@ run_sha1() {
     time sha1sum < $INPUTFILE
 
     info "Sha1 (RFC):"
-    clang -w rfc/Sha1.c -o Sha1
+    clang -w tests/rfc/Sha1.c -o Sha1
     ./Sha1 < $INPUTFILE
 }
 
@@ -34,12 +34,11 @@ run_sha256() {
     time sha256sum < $INPUTFILE
 
     info "Sha256 (RFC):"
-    if [ -d ../RFC-6234 ]; then
-        make -C ../RFC-6234
-        ../RFC-6234/shatest -s "$(cat $INPUTFILE)" -h2
-    else
-        echo "Clone https://github.com/Madricas/RFC-6234.git into ../RFC-6234"
+    if [ ! -d tests/rfc/RFC-6234 ]; then
+        git clone https://github.com/Madricas/RFC-6234.git tests/rfc/RFC-6234
     fi
+    make -C tests/rfc/RFC-6234
+    tests/rfc/RFC-6234/shatest -s "$(cat $INPUTFILE)" -h2
 }
 
 run_sha224() {
@@ -47,12 +46,11 @@ run_sha224() {
     time sha224sum < $INPUTFILE
 
     info "Sha224 (RFC):"
-    if [ -d ../RFC-6234 ]; then
-        make -C ../RFC-6234
-        ../RFC-6234/shatest -s "$(cat $INPUTFILE)" -h1
-    else
-        echo "Clone https://github.com/Madricas/RFC-6234.git into ../RFC-6234"
+    if [ ! -d tests/rfc/RFC-6234 ]; then
+        git clone https://github.com/Madricas/RFC-6234.git tests/rfc/RFC-6234
     fi
+    make -C tests/rfc/RFC-6234
+    tests/rfc/RFC-6234/shatest -s "$(cat $INPUTFILE)" -h1
 }
 
 verify_ok() {
@@ -102,8 +100,8 @@ verify)
     INPUTFILE="$3"
 
     cmdname="${CMDTYPE}_${ALG}"
-    typing="$(type "$cmdname" 2> /dev/null | head -n1 || :)"
-    if [ "$typing" = "$cmdname is a function" ]; then
+    typing="$(type -t "$cmdname" 2> /dev/null | head -n1 || :)"
+    if [ "$typing" = "function" ]; then
         [ -f "$INPUTFILE" ] || usage
         $cmdname ${@:2}
 

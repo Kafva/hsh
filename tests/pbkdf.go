@@ -1,5 +1,5 @@
 // https://datatracker.ietf.org/doc/html/rfc2898
-// go build -C rfc -o $PWD/pbkdf pbkdf.go
+// go build -C tests -o $PWD/pbkdf pbkdf.go
 package main
 
 import (

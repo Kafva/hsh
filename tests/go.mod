@@ -1,4 +1,4 @@
-module github.com/Kafva/hsh/rfc
+module github.com/Kafva/hsh/tests
 
 go 1.23.2
 
