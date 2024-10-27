@@ -5,6 +5,7 @@ module Main (main) where
 import Md5
 import Sha1
 import Sha256
+import Pbkdf2
 import Template
 import Types (Config(..))
 import Util (word8ArrayToHexString, word8ArrayToHexArray)
@@ -104,7 +105,7 @@ main = do
             putStrLn $ word8ArrayToHexString digest 32
 
         "pbkdf2" -> do
-            let derivedKey = [0x0]
+            let derivedKey = runReader (Pbkdf2.deriveKey bytes) opts
             putStrLn $ word8ArrayToHexString derivedKey 32
 
         alg ->
