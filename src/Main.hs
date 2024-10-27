@@ -19,7 +19,8 @@ import Data.Foldable (for_)
 import System.Exit (exitFailure, exitSuccess)
 import Control.Monad.Reader (runReaderT, runReader)
 
-import qualified Data.ByteString as B
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
 import Data.Word (Word8)
 
 defaultOptions :: Config
@@ -28,10 +29,13 @@ defaultOptions = Config {
     version = False,
     debug = False,
     algorithm = "",
-    salt = "abc",
+    saltSource = "",
     iterations = 1,
     derivedKeyLength = 4
 }
+
+defaultSalt :: String
+defaultSalt = "abcd"
 
 usage :: IO ()
 usage = do
@@ -69,9 +73,9 @@ options = [
         "Select algorithm [md5,sha1,sha224,sha256,pbkdf2]",
 
         Option ['s'] ["salt"] (ReqArg (\arg opt ->
-            return opt { salt = arg }
-        ) "salt")
-        ("Salt to use for key derivation: [default: " ++ salt defaultOptions ++ "]"),
+            return opt { saltSource = arg }
+        ) "stream")
+        ("Input stream for salt to use for key derivation: [default: " ++ defaultSalt ++ "]"),
 
         Option ['i'] ["iterations"] (ReqArg (\arg opt ->
             return opt { iterations = stringToInt arg }
@@ -100,8 +104,8 @@ main = do
     runReaderT (debug' "%s\n" (show opts)) opts
 
     -- Read from stdin
-    input <- B.getContents
-    let bytes :: [Word8] = B.unpack input
+    input <- BS.getContents
+    let bytes :: [Word8] = BS.unpack input
 
     runReaderT (debug' "raw input: %s\n" (word8ArrayToHexArray bytes 64)) opts
 
@@ -123,7 +127,12 @@ main = do
             putStrLn $ word8ArrayToHexString digest 32
 
         "pbkdf2" -> do
-            let derivedKey = runReader (Pbkdf2.deriveKey bytes) opts
+            saltByteString <- if saltSource opts == ""
+                              then return (BSC.pack defaultSalt)
+                              else BS.readFile (saltSource opts)
+            let salt = BS.unpack saltByteString
+
+            let derivedKey = runReader (Pbkdf2.deriveKey bytes salt) opts
             putStrLn $ word8ArrayToHexString derivedKey 32
 
         alg ->
