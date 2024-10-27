@@ -8,7 +8,7 @@ import Sha256
 import Pbkdf2
 import Template
 import Types (Config(..))
-import Util (word8ArrayToHexString, word8ArrayToHexArray)
+import Util (word8ArrayToHexString, word8ArrayToHexArray, stringToInt, intToString)
 import Log (debug')
 
 import Control.Monad (unless)
@@ -27,7 +27,10 @@ defaultOptions = Config {
     help = False,
     version = False,
     debug = False,
-    algorithm = ""
+    algorithm = "",
+    salt = "abc",
+    iterations = 1,
+    derivedKeyLength = 4
 }
 
 usage :: IO ()
@@ -63,7 +66,22 @@ options = [
         Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
             return opt { algorithm = arg }
         ) "algorithm")
-        "Select algorithm [md5,sha1,sha224,sha256,pbkdf2]"
+        "Select algorithm [md5,sha1,sha224,sha256,pbkdf2]",
+
+        Option ['s'] ["salt"] (ReqArg (\arg opt ->
+            return opt { salt = arg }
+        ) "salt")
+        ("Salt to use for key derivation: [default: " ++ salt defaultOptions ++ "]"),
+
+        Option ['i'] ["iterations"] (ReqArg (\arg opt ->
+            return opt { iterations = stringToInt arg }
+        ) "count")
+        ("Iterations to use for key derivation [default: " ++ intToString (iterations defaultOptions) ++ "]"),
+
+        Option ['l'] ["length"] (ReqArg (\arg opt ->
+            return opt { derivedKeyLength = stringToInt arg }
+        ) "count")
+        ("Length of derived key to generate [default: " ++ intToString (derivedKeyLength defaultOptions) ++ " bytes]")
     ]
 
 main :: IO ()

@@ -8,7 +8,9 @@ module Util (
     word32ArrayToWord8ArrayBE,
     padMd5Input,
     padSha1Input,
-    showDigestArray
+    showDigestArray,
+    stringToInt,
+    intToString
 ) where
 
 import Types (Block)
@@ -155,3 +157,10 @@ padInput :: [Word8] -> [Word8]
 padInput bytes = if mod (length bytes) 64 /= (64-8)
                  then padInput $ bytes ++ [0x0]
                  else bytes
+
+stringToInt :: String -> Int
+stringToInt = read
+
+intToString :: Int -> String
+intToString = show
+
