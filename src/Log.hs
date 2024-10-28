@@ -1,6 +1,5 @@
-{-
- - Trace functions, have not bothered with proper handling of variadic arguments
- -}
+{- HLINT ignore "Eta reduce" -}
+{- Trace functions, no handling of variadic arguments -}
 module Log (debug', trace', trace'') where
 
 import Control.Monad.Reader

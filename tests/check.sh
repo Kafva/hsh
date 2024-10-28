@@ -4,8 +4,9 @@ set -e
 info() { printf "\033[34m*\033[0m $1\n" >&2; }
 usage() {
     cat << EOF
-usage: check.sh verify [file]
-                run <alg> [file] [hsh args]
+usage: check.sh [CMD]
+    verify [file]
+    run <alg> [file] [hsh args]
 
 EOF
     exit 1
@@ -16,8 +17,7 @@ run_md5() {
     time md5 < $INPUTFILE
 
     info "Md5 (RFC):"
-    clang -w tests/rfc/Md5.c -o Md5
-    time ./Md5 < $INPUTFILE
+    time ./tests/bin/Md5 < $INPUTFILE
 }
 
 run_sha1() {
@@ -25,8 +25,7 @@ run_sha1() {
     time sha1sum < $INPUTFILE
 
     info "Sha1 (RFC):"
-    clang -w tests/rfc/Sha1.c -o Sha1
-    ./Sha1 < $INPUTFILE
+    ./tests/bin/Sha1 < $INPUTFILE
 }
 
 run_sha256() {
@@ -34,10 +33,6 @@ run_sha256() {
     time sha256sum < $INPUTFILE
 
     info "Sha256 (RFC):"
-    if [ ! -d tests/rfc/RFC-6234 ]; then
-        git clone https://github.com/Madricas/RFC-6234.git tests/rfc/RFC-6234
-    fi
-    make -C tests/rfc/RFC-6234
     tests/rfc/RFC-6234/shatest -s "$(cat $INPUTFILE)" -h2
 }
 
@@ -46,10 +41,6 @@ run_sha224() {
     time sha224sum < $INPUTFILE
 
     info "Sha224 (RFC):"
-    if [ ! -d tests/rfc/RFC-6234 ]; then
-        git clone https://github.com/Madricas/RFC-6234.git tests/rfc/RFC-6234
-    fi
-    make -C tests/rfc/RFC-6234
     tests/rfc/RFC-6234/shatest -s "$(cat $INPUTFILE)" -h1
 }
 
@@ -76,7 +67,6 @@ verify_ok() {
 
 CMDTYPE="$1"
 
-cabal build -v0
 HSH=$(find dist-newstyle -type f -name hsh)
 
 case "$CMDTYPE" in

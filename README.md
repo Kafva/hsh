@@ -7,8 +7,8 @@ The performance is very not good, debug logs for each step can be printed with `
 cabal run hsh -- --help
 
 # (Re)-install to ~/.local/bin
-cabal install --overwrite-policy=always
+make install
 
 # Verify against builtins
-./check.sh verify
+make test
 ```
