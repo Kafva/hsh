@@ -23,6 +23,7 @@ data Config = Config {
     debug :: Bool,
     algorithm :: String,
     saltSource :: String,
+    macKeySource :: String,
     iterations :: Int,
     derivedKeyLength :: Int
 

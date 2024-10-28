@@ -12,7 +12,7 @@ trace' :: String -> PrintfArg a => a -> b -> Reader Config b
 trace' fmt arg toRun = do
     cfg <- ask
     if debug cfg
-    then return $ trace (debugPrintf' fmt arg)toRun
+    then return $ trace (debugPrintf' fmt arg) toRun
     else return toRun
 
 trace'' :: String -> PrintfArg a => a -> PrintfArg b => b -> c -> Reader Config c

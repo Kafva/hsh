@@ -39,6 +39,7 @@ executable hsh
     other-modules:    Md5
                       Sha1
                       Sha256
+                      Hmac
                       Pbkdf2
                       Template
                       Types
