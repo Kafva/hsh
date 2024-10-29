@@ -1,3 +1,4 @@
+{- HLINT ignore "Use head" -}
 module Sha1 (hash) where
 
 import Control.Monad.Reader

@@ -1,3 +1,4 @@
+{- HLINT ignore "Use head" -}
 module Util (
     word8ArrayToHexArray,
     word8ArrayToHexString,
@@ -8,6 +9,7 @@ module Util (
     word32ArrayToWord8ArrayBE,
     padMd5Input,
     padSha1Input,
+    padEndZero,
     showDigestArray,
     stringToInt,
     intToString
@@ -128,7 +130,7 @@ word32ArrayToWord8ArrayBE :: [Word32] -> [Word8]
 word32ArrayToWord8ArrayBE = concatMap word32ToWord8ArrayBE
 
 showDigestArray :: [Word32] -> Int -> String
-showDigestArray digest byteCount = word8ArrayToHexArray (word32ArrayToWord8ArrayBE digest) byteCount
+showDigestArray digest = word8ArrayToHexArray (word32ArrayToWord8ArrayBE digest)
 
 padSha1Input :: [Word8] -> [Word8]
 padSha1Input bytes = do
@@ -139,6 +141,11 @@ padMd5Input :: [Word8] -> [Word8]
 padMd5Input bytes = do
     let unpaddedBitCount :: Word64 = fromIntegral (8 * length bytes)
     padInput (bytes ++ [0b1000_0000]) ++ word64ToWord8ArrayLE unpaddedBitCount
+
+padEndZero :: [Word8] -> Int -> [Word8]
+padEndZero bytes byteCount = if mod (length bytes) byteCount  /= (byteCount-8)
+                             then padEndZero (bytes ++ [0x0]) byteCount
+                             else bytes
 
 {-
  - SHA1 and MD5 use the same padding method,

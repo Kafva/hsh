@@ -80,7 +80,7 @@ options = [
         Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
             return opt { algorithm = arg }
         ) "algorithm")
-        "Select algorithm [md5,sha1,sha224,sha256,pbkdf2]",
+        "Select algorithm [md5,sha1,sha224,sha256,hmac,pbkdf2]",
 
         Option ['s'] ["salt"] (ReqArg (\arg opt ->
             return opt { saltSource = arg }

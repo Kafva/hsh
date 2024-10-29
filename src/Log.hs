@@ -7,6 +7,7 @@ import Types(Config(..), ConfigMonad)
 import Text.Printf (printf, PrintfArg)
 import Debug.Trace
 
+-- One argument...
 trace' :: String -> PrintfArg a => a -> b -> Reader Config b
 trace' fmt arg toRun = do
     cfg <- ask
@@ -14,6 +15,7 @@ trace' fmt arg toRun = do
     then return $ trace (debugPrintf' fmt arg) toRun
     else return toRun
 
+-- Two arguments...
 trace'' :: String -> PrintfArg a => a -> PrintfArg b => b -> c -> Reader Config c
 trace'' fmt arg1 arg2 toRun = do
     cfg <- ask
@@ -22,9 +24,11 @@ trace'' fmt arg1 arg2 toRun = do
     else return toRun
 
 
+-- One argument...
 debugPrintf' :: String -> PrintfArg a => a -> String
 debugPrintf' fmt args = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt) args
 
+-- Two arguments...
 debugPrintf'' :: String -> PrintfArg a => a -> PrintfArg b => b -> String
 debugPrintf'' fmt args = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt) args
 
