@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/hmac"
 	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path"
@@ -32,9 +33,14 @@ func runHmac() {
     data := []byte(os.Args[1])
     key := []byte(os.Args[2])
 
+    fmt.Fprintf(os.Stderr, "data: %+v\n", data)
+    fmt.Fprintf(os.Stderr, "key: %+v\n", key)
+
     mac := hmac.New(sha1.New, key)
     digest := mac.Sum(data)
-    fmt.Printf("%+v\n", digest);
+
+    fmt.Fprintf(os.Stderr, "output: %+v\n", digest)
+    println(hex.EncodeToString(digest))
 }
 
 func runPbkdf2() {

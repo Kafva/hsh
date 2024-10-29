@@ -5,9 +5,10 @@ info() { printf "\033[34m*\033[0m $1\n" >&2; }
 usage() {
     cat << EOF
 usage: check.sh [CMD]
-    verify [file]
-    run <alg> [file] [hsh args]
 
+COMMANDS:
+   verify [file]                 | Verify all algorithms with [file] as input data
+   run <alg> [file] [hsh args]   | Run specific algorithm
 EOF
     exit 1
 }
@@ -44,12 +45,17 @@ run_sha224() {
     tests/rfc/RFC-6234/shatest -s "$(cat $INPUTFILE)" -h1
 }
 
+run_hmac() {
+    info "golang/x/crypto/hmac:"
+    time tests/bin/hmac "$(cat $INPUTFILE)" $HMAC_KEY
+}
+
 verify_ok() {
     local alg="$1"
     local expected="$2"
     local tmpfile=$(mktemp)
 
-    { time $HSH -a $alg < $INPUTFILE; } &> $tmpfile
+    { time $HSH -a $alg -k $HMAC_KEY < $INPUTFILE; } &> $tmpfile
     local hsh_out=$(sed -n '1p' $tmpfile)
     local time_taken=$(sed -n '2p' $tmpfile)
 
@@ -65,6 +71,7 @@ verify_ok() {
     fi
 }
 
+HMAC_KEY=abc
 CMDTYPE="$1"
 
 HSH=$(find dist-newstyle -type f -name hsh)
@@ -92,11 +99,11 @@ verify)
     cmdname="${CMDTYPE}_${ALG}"
     typing="$(type -t "$cmdname" 2> /dev/null | head -n1 || :)"
     if [ "$typing" = "function" ]; then
-        [ -f "$INPUTFILE" ] || usage
+        [ -r "$INPUTFILE" ] || usage
         $cmdname ${@:2}
 
         info "hsh:"
-        time $HSH -a $ALG ${@:3} < $INPUTFILE
+        time $HSH -a $ALG ${@:4} -k <(echo -n $HMAC_KEY) < $INPUTFILE
     else
         usage
     fi

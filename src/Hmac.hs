@@ -9,17 +9,6 @@ import Util (padEndZero, word8ArrayToHexArray)
 
 type HashSignature = [Word8] -> Reader Config [Word8]
 
-blockSize :: Int
-blockSize = 64
-
--- Inner padding bytes
-ipad :: [Word8]
-ipad = [0x36 | _ <- [0..blockSize]]
-
--- Outer padding bytes
-opad :: [Word8]
-opad = [0x5C | _ <- [0..blockSize]]
-
 {-
  - "Message authentication codes" (MAC) are used to check the integrity of a
  - message based on a secret key. HMAC requires three inputs:
@@ -37,8 +26,10 @@ opad = [0x5C | _ <- [0..blockSize]]
 calculate :: [Word8] -> [Word8] -> HashSignature -> Reader Config [Word8]
 calculate bytes key hashFunction = do
     cfg <- ask
-    let paddedKey = padEndZero key blockSize
-    let innerDigest = runReader (hashFunction $ paddedKey ++ bytes) cfg
-    let outerDigest = runReader (hashFunction $ paddedKey ++ innerDigest) cfg
+    let paddedKey = padEndZero key 64
+    let innerKey = map (xor 0x36)  paddedKey
+    let outerKey = map (xor 0x5c)  paddedKey
+    let innerDigest = runReader (hashFunction $ innerKey ++ bytes) cfg
+    let outerDigest = runReader (hashFunction $ outerKey ++ innerDigest) cfg
 
     trace' "output: %s" (word8ArrayToHexArray outerDigest 20) outerDigest
