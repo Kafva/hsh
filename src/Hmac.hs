@@ -26,10 +26,11 @@ type HashSignature = [Word8] -> Reader Config [Word8]
 calculate :: [Word8] -> [Word8] -> HashSignature -> Reader Config [Word8]
 calculate bytes key hashFunction = do
     cfg <- ask
+
     let paddedKey = padEndZero key 64
     let innerKey = map (xor 0x36)  paddedKey
     let outerKey = map (xor 0x5c)  paddedKey
     let innerDigest = runReader (hashFunction $ innerKey ++ bytes) cfg
     let outerDigest = runReader (hashFunction $ outerKey ++ innerDigest) cfg
 
-    trace' "output: %s" (word8ArrayToHexArray outerDigest 20) outerDigest
+    trace' "[Hmac] output: %s" (word8ArrayToHexArray outerDigest 20) outerDigest

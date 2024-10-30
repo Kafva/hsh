@@ -65,7 +65,7 @@ processW w digest t = do
     let newA = rotateL a 5 + f t b c d + e + (w!!t) + getK t
     let newC = rotateL b 30
     let newDigest = [newA, a, newC, c, d]
-    trace'' "[t=%d] %s" t (show newDigest) newDigest
+    trace'' "[Sha1] t=%d %s" t (show newDigest) newDigest
 
 processBlock :: Sha1Digest -> Block -> Reader Config Sha1Digest
 processBlock digest block = do
@@ -90,7 +90,7 @@ hash :: [Word8] -> Reader Config [Word8]
 hash bytes = do
     -- * Pad the input
     let paddedBytes = padSha1Input bytes
-    blocks :: [Block] <- trace' "input: %s" (word8ArrayToHexArray paddedBytes 64)
+    blocks :: [Block] <- trace' "[Sha1] input: %s" (word8ArrayToHexArray paddedBytes 64)
                          (word32ArrayToBlocks $ word8toWord32ArrayBE paddedBytes)
 
     -- * Set starting values
@@ -103,6 +103,6 @@ hash bytes = do
     -- * Process each block
     finalDigest <- foldlM processBlock digest blocks
 
-    trace' "output: %s" (showDigestArray finalDigest 20) $
+    trace' "[Sha1] output: %s" (showDigestArray finalDigest 20) $
         word32ArrayToWord8ArrayBE finalDigest
 

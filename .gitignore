@@ -1,6 +1,7 @@
 # vi: ft=gitignore
 
 /.*.ghci
+.testenv
 /hsh
 RFC-6234
 

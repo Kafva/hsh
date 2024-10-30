@@ -41,26 +41,26 @@ digestNewA :: NewDigestSignature
 digestNewA a b c d blk auxFunction k s i = do
     let newA = auxRound a b c d auxFunction blk k s i
     let newDigest = [newA, b, c, d]
-    trace'' "ABCD [i=%d]: %s" i (showDigestArray newDigest 16) newDigest
+    trace'' "[Md5] ABCD i=%d: %s" i (showDigestArray newDigest 16) newDigest
 
 digestNewB :: NewDigestSignature
 digestNewB a b c d blk auxFunction k s i = do
     let newB = auxRound b c d a auxFunction blk k s i
     let newDigest = [a, newB, c, d]
-    trace'' "BCDA [i=%d]: %s" i (showDigestArray newDigest 16) newDigest
+    trace'' "[Md5] BCDA i=%d: %s" i (showDigestArray newDigest 16) newDigest
 
 
 digestNewC :: NewDigestSignature
 digestNewC a b c d blk auxFunction k s i = do
     let newC = auxRound c d a b auxFunction blk k s i
     let newDigest = [a, b, newC, d]
-    trace'' "CDAB [i=%d]: %s" i (showDigestArray newDigest 16) newDigest
+    trace'' "[Md5] CDAB i=%d: %s" i (showDigestArray newDigest 16) newDigest
 
 digestNewD :: NewDigestSignature
 digestNewD a b c d blk auxFunction k s i = do
     let newD = auxRound d a b c auxFunction blk k s i
     let newDigest = [a, b, c, newD]
-    trace'' "DABC [i=%d]: %s" i (showDigestArray newDigest 16) newDigest
+    trace'' "[Md5] DABC i=%d: %s" i (showDigestArray newDigest 16) newDigest
 
 {-
  - a = b + ((a + F(b,c,d) + X[k] + T[i]) <<< s)
@@ -149,7 +149,7 @@ hash :: [Word8] -> Reader Config [Word8]
 hash bytes = do
     -- * Pad the input to be a multiple of the block size (16 bytes)
     let paddedBytes = padMd5Input bytes
-    blocks <-  trace' "input: %s" (word8ArrayToHexArray paddedBytes 64)
+    blocks <-  trace' "[Md5] input: %s" (word8ArrayToHexArray paddedBytes 64)
                (word32ArrayToBlocks $ word8toWord32ArrayLE paddedBytes)
 
     -- * Set starting values
@@ -167,5 +167,5 @@ hash bytes = do
     -- RFC, updating one slot in the digest for each `digestNew` call.
     finalDigest <- foldlM processBlock startDigest blocks
 
-    trace' "output: %s" (showDigestArray finalDigest 16) $
+    trace' "[Md5] output: %s" (showDigestArray finalDigest 16) $
         word32ArrayToWord8ArrayLE finalDigest

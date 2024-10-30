@@ -146,6 +146,7 @@ main = do
                               then return (BSC.pack defaultMACKey)
                               else BS.readFile (macKeySource opts)
             let macKey = BS.unpack macKeyByteString
+            runReaderT (debug' "[Hmac] key: %s" (word8ArrayToHexArray macKey (length macKey))) opts
 
             let mac = runReader (Hmac.calculate bytes macKey Sha1.hash) opts
             putStrLn $ word8ArrayToHexString mac 32

@@ -24,20 +24,37 @@ func main() {
     }
 }
 
+func dumpWordArray(label string, arr []byte) {
+    fmt.Fprintf(os.Stderr, "%s: [", label)
+    for i := range arr {
+        fmt.Fprintf(os.Stderr, "0x%x ", arr[i])
+    }
+    fmt.Fprintf(os.Stderr, "]\n")
+}
+
 func runHmac() {
     if len(os.Args) != 3 {
-        fmt.Printf("Usage: %s <data> <key>\n", path.Base(os.Args[0]))
+        fmt.Printf("Usage: %s <message> <key>\n", path.Base(os.Args[0]))
         os.Exit(1)
     }
 
-    data := []byte(os.Args[1])
-    key := []byte(os.Args[2])
+    message, err := os.ReadFile(os.Args[1])
+    if err != nil {
+        fmt.Printf("Error reading: '%s'\n", os.Args[1])
+        return
+    }
 
-    fmt.Fprintf(os.Stderr, "data: %+v\n", data)
-    fmt.Fprintf(os.Stderr, "key: %+v\n", key)
+    key, err := os.ReadFile(os.Args[2])
+    if err != nil {
+        fmt.Printf("Error reading: '%s'\n", os.Args[2])
+        return
+    }
+
+    dumpWordArray("key", key)
+    dumpWordArray("message", message)
 
     mac := hmac.New(sha1.New, key)
-    digest := mac.Sum(data)
+    digest := mac.Sum(message)
 
     fmt.Fprintf(os.Stderr, "output: %+v\n", digest)
     println(hex.EncodeToString(digest))
