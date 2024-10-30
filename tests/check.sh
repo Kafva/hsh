@@ -2,6 +2,7 @@
 set -e
 
 info() { printf "\033[34m*\033[0m $1\n" >&2; }
+echox () { echo "+ $*" && $@; }
 usage() {
     cat << EOF
 usage: check.sh [CMD]
@@ -102,8 +103,8 @@ verify)
         [ -r "$INPUTFILE" ] || usage
         $cmdname ${@:2}
 
-        info "hsh:"
-        time $HSH -a $ALG ${@:4} -k <(echo -n $HMAC_KEY) < $INPUTFILE
+        info "hsh: "
+        echox $HSH -a $ALG ${@:4} -k <(echo -n $HMAC_KEY) < $INPUTFILE
     else
         usage
     fi
