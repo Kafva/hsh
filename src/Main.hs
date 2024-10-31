@@ -45,9 +45,9 @@ defaultMACKey = "abcd"
 usage :: IO ()
 usage = do
     programName <- getProgName
-    let header = "USAGE:\n" ++ 
-                 programName ++ " [OPTIONS]\n\n" ++ 
-                 "Calculate hashes etc. of input from stdin\n\n" ++ 
+    let header = "USAGE:\n" ++
+                 programName ++ " [OPTIONS]\n\n" ++
+                 "Calculate hashes etc. of input from stdin\n\n" ++
                  "OPTIONS:"
     hPutStrLn stderr $ usageInfo header options
 

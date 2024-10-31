@@ -25,7 +25,7 @@ func main() {
 }
 
 func dumpWordArray(label string, arr []byte) {
-    fmt.Fprintf(os.Stderr, "%s: [", label)
+    fmt.Fprintf(os.Stderr, "%s [%d byte(s)]: [", label, len(arr))
     for i := range arr {
         fmt.Fprintf(os.Stderr, "0x%x ", arr[i])
     }
@@ -54,9 +54,10 @@ func runHmac() {
     dumpWordArray("message", message)
 
     mac := hmac.New(sha1.New, key)
-    digest := mac.Sum(message)
+    mac.Write(message)
+    digest := mac.Sum(nil)
 
-    fmt.Fprintf(os.Stderr, "output: %+v\n", digest)
+    dumpWordArray("output", digest)
     println(hex.EncodeToString(digest))
 }
 
