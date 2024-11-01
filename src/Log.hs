@@ -1,6 +1,6 @@
 {- HLINT ignore "Eta reduce" -}
 {- Trace functions, no handling of variadic arguments -}
-module Log (debug', trace', trace'') where
+module Log (debug', debug'', trace', trace'') where
 
 import Control.Monad.Reader
 import Types(Config(..), ConfigMonad)
@@ -30,7 +30,7 @@ debugPrintf' fmt args = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt) args
 
 -- Two arguments...
 debugPrintf'' :: String -> PrintfArg a => a -> PrintfArg b => b -> String
-debugPrintf'' fmt args = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt) args
+debugPrintf'' fmt arg1 arg2 = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt) arg1 arg2
 
 debug' :: String -> PrintfArg a => a -> ConfigMonad()
 debug' fmt arg = do
@@ -38,3 +38,11 @@ debug' fmt arg = do
     if debug cfg
        then liftIO $ putStr $ debugPrintf' fmt arg
        else liftIO $ putStr ""
+
+debug'' :: String -> PrintfArg a => a -> PrintfArg b => b -> ConfigMonad()
+debug'' fmt arg1 arg2 = do
+    cfg <- ask
+    if debug cfg
+       then liftIO $ putStr $ debugPrintf'' fmt arg1 arg2
+       else liftIO $ putStr ""
+

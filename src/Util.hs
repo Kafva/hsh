@@ -143,7 +143,7 @@ padMd5Input bytes = do
     padInput (bytes ++ [0b1000_0000]) ++ word64ToWord8ArrayLE unpaddedBitCount
 
 padEndZero :: [Word8] -> Int -> [Word8]
-padEndZero bytes byteCount = if mod (length bytes) byteCount  /= (byteCount-8)
+padEndZero bytes byteCount = if length bytes /= byteCount
                              then padEndZero (bytes ++ [0x0]) byteCount
                              else bytes
 

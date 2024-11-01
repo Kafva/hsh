@@ -1,6 +1,5 @@
 .PHONY: verify build
 
-HSH := $(shell find dist-newstyle -type f -name hsh)
 HSH_ARGS += -k $(HMAC_KEYFILE)
 HMAC_KEYFILE ?= .testenv/key.dat
 INPUTFILE ?= .testenv/input.dat
@@ -34,7 +33,7 @@ endef
 # $1: Algorithm
 # $2: Expected output
 define verify_ok
-	@if [ $(shell $(HSH) -a ${1} -k $(HMAC_KEYFILE) < $(INPUTFILE)) = ${2} ]; then \
+	@if [ $(shell cabal run hsh -- -a ${1} -k $(HMAC_KEYFILE) < $(INPUTFILE)) = ${2} ]; then \
 		printf "[ \033[92m OK \033[0m ] %-7s %s\n" ${1} ${2}; \
 	else \
 		printf "[ \033[91mFAIL\033[0m ] %-7s %s\n" ${1}; \
@@ -53,7 +52,7 @@ define verify_alg
 	$(call msg,${3})
 	${4}
 	$(call msg,hsh)
-	$(HSH) -a ${1} $(HSH_ARGS) < $(INPUTFILE)
+	cabal run hsh -- -a ${1} $(HSH_ARGS) < $(INPUTFILE)
 endef
 
 $(INPUTFILE):
@@ -63,7 +62,8 @@ $(INPUTFILE):
 
 $(HMAC_KEYFILE):
 	mkdir -p $(dir $@)
-	echo -n abc > $@
+	@# echo -n abc > $@
+	dd if=/dev/urandom of=$@ bs=32 count=1
 
 verify-md5: $(INPUTFILE)
 	$(call verify_alg,md5,md5sum,Md5-RFC,\
@@ -81,9 +81,9 @@ verify-sha256: $(INPUTFILE)
 	$(call verify_alg,sha256,sha256sum,Sha256-RFC,\
 		tests/rfc/RFC-6234/shatest -s $(shell cat $(INPUTFILE)) -h2)
 
-verify-hmac: $(INPUTFILE) $(HMAC_KEYFILE)
+verify-hmac: build $(INPUTFILE) $(HMAC_KEYFILE)
 	$(call verify_alg,hmac,,golang/x/crypto/hmac,\
-		tests/bin/hmac $(INPUTFILE) $(HMAC_KEYFILE))
+		tests/bin/hmac -d $(INPUTFILE) $(HMAC_KEYFILE))
 
 verify: build $(INPUTFILE) $(HMAC_KEYFILE)
 	mkdir -p .testenv
@@ -91,4 +91,5 @@ verify: build $(INPUTFILE) $(HMAC_KEYFILE)
 	$(call verify_ok,sha1,$(shell sha1sum < $(INPUTFILE) | awk '{print $$1}'))
 	$(call verify_ok,sha224,$(shell sha224sum < $(INPUTFILE) | awk '{print $$1}'))
 	$(call verify_ok,sha256,$(shell sha256sum < $(INPUTFILE) | awk '{print $$1}'))
+	$(call verify_ok,hmac,$(shell tests/bin/hmac $(INPUTFILE) $(HMAC_KEYFILE)))
 

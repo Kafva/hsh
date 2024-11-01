@@ -10,7 +10,7 @@ import Hmac
 import Template
 import Types (Config(..))
 import Util (word8ArrayToHexString, word8ArrayToHexArray, stringToInt, intToString)
-import Log (debug')
+import Log (debug', debug'')
 
 import Control.Monad (unless)
 import System.IO (hPutStrLn, stderr)
@@ -122,7 +122,9 @@ main = do
     input <- BS.getContents
     let bytes :: [Word8] = BS.unpack input
 
-    runReaderT (debug' "raw input: %s\n" (word8ArrayToHexArray bytes 64)) opts
+    runReaderT (debug'' "input [%d byte(s)]: %s \n" 
+                (length bytes)
+                (word8ArrayToHexArray bytes 64)) opts
 
     case algorithm opts of
         "md5"  -> do
@@ -146,9 +148,12 @@ main = do
                               then return (BSC.pack defaultMACKey)
                               else BS.readFile (macKeySource opts)
             let macKey = BS.unpack macKeyByteString
-            runReaderT (debug' "[Hmac] key: %s" (word8ArrayToHexArray macKey (length macKey))) opts
+            runReaderT (debug'' "[Hmac] key [%d byte(s)]: %s\n" 
+                (length macKey)
+                (word8ArrayToHexArray macKey (length macKey))) opts
 
-            let mac = runReader (Hmac.calculate bytes macKey Sha1.hash) opts
+            -- Always use Sha1 as the hash function
+            let mac = runReader (Hmac.calculate bytes macKey Sha1.hash 20) opts
             putStrLn $ word8ArrayToHexString mac 32
 
         "pbkdf2" -> do
