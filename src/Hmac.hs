@@ -12,9 +12,9 @@ type HashSignature = [Word8] -> Reader Config [Word8]
 {-
  - "Message authentication codes" (MAC) are used to check the integrity of a
  - message based on a secret key. HMAC requires three inputs:
- -  * A hash function to use
- -  * A secret key for authentication (shared between sender and recipient)
  -  * A message
+ -  * A secret key for authentication (shared between sender and recipient)
+ -  * A hash function to use
  -  The output size depends on the hash function H
  -
  -  digest = H(key XOR opad, H(key XOR ipad, message))

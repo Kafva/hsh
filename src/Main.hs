@@ -161,8 +161,13 @@ main = do
                               then return (BSC.pack defaultSalt)
                               else BS.readFile (saltSource opts)
             let salt = BS.unpack saltByteString
+            runReaderT (debug'' "[Pbkdf2] salt [%d byte(s)]: %s\n" 
+                (length salt)
+                (word8ArrayToHexArray salt (length salt))) opts
 
-            let derivedKey = runReader (Pbkdf2.deriveKey bytes salt) opts
+            let derivedKey = runReader (Pbkdf2.deriveKey bytes salt 
+                                        (iterations opts)
+                                        (derivedKeyLength opts)) opts
             putStrLn $ word8ArrayToHexString derivedKey 32
 
         alg ->

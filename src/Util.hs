@@ -7,6 +7,7 @@ module Util (
     word32ArrayToBlocks,
     word32ArrayToWord8ArrayLE,
     word32ArrayToWord8ArrayBE,
+    word32ToWord8ArrayBE,
     padMd5Input,
     padSha1Input,
     padEndZero,
