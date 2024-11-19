@@ -8,20 +8,26 @@ import Log (trace')
 import Util (word32ToWord8ArrayBE)
 import Hmac
 import Sha1 (hash)
-
+import Data.Foldable (foldl', foldlM)
 
 -- Output length of the underlying hash function (sha1)
 hLen :: Int
 hLen = 20
 
--- Note: The password is used the 'secret key' for hmac
--- and the salt is used as the 'messagee' for hmac.
+-- From the RFC: "In the case of PBKDF2, the "key" is thus the password and the 
+-- "text" is the salt". I.e.
+--  password --> hmac 'secret key'
+--  salt     --> hmac 'message'
 prf :: [Word8] -> [Word8] -> Reader Config [Word8]
 prf password salt = Hmac.calculate salt password hash hLen
 
-    -- -- TODO: four-octet encoding of blockIndex...
-    -- let message = salt ++ word32ToWord8ArrayBE blockIndex
+-- -- TODO: four-octet encoding of blockIndex...
+-- let message = salt ++ word32ToWord8ArrayBE blockIndex
 
+funcU :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
+funcU password salt i l
+    | i == 0  = prf password salt
+    | otherwise = prf password (runReader (funcU password salt (i-1) l))
 
 {-
  - PBKDF2 (P, S, c, dkLen)
@@ -48,7 +54,8 @@ deriveKey :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
 deriveKey password salt iterations derivedKeyLength
     | derivedKeyLength > (2 ^ 32 - 1) * hLen = error "Derived key length to large"
     | otherwise = do
+    let derivedBlockCount = ceiling (derivedKeyLength / hLen)
+    let lastBlockByteCount = derivedKeyLength - (derivedBlockCount - 1) * hLen
 
+    foldl' prf password salt
     trace' "aa" "aa" $ [0x0]
-
-
