@@ -39,15 +39,13 @@ func runHmac(args []string) {
         os.Exit(1)
     }
 
-    message, err := os.ReadFile(args[0])
-    if err != nil {
-        fmt.Printf("Error reading: '%s'\n", args[0])
+    message, ok := loadFromFile(args[0])
+    if !ok {
         return
     }
 
-    key, err := os.ReadFile(args[1])
-    if err != nil {
-        fmt.Printf("Error reading: '%s'\n", args[1])
+    key, ok := loadFromFile(args[1])
+    if !ok {
         return
     }
 
@@ -69,23 +67,44 @@ func runPbkdf2(args []string) {
         os.Exit(1)
     }
 
-    password := []byte(args[0])
-    salt := []byte(args[1])
+    password, ok := loadFromFile(args[0])
+    if !ok {
+        return
+    }
+    dumpWordArray("password", password)
+
+    salt, ok := loadFromFile(args[1])
+    if !ok {
+        return
+    }
+    dumpWordArray("salt", salt)
+
     iterations, _ := strconv.Atoi(args[2])
     length, _ := strconv.Atoi(args[3])
 
     dk := pbkdf2.Key(password, salt, iterations, length, sha1.New)
-    fmt.Printf("%+v\n", dk);
+    dumpWordArray("output", dk)
+    writeResult(dk)
 }
 
 func writeResult(result []byte) {
     hexstr := hex.EncodeToString(result)
     f := bufio.NewWriter(os.Stdout)
-    defer f.Flush() // Make sure to flush the stream
     f.WriteString(hexstr)
+    f.Flush() // Make sure to flush the stream
+    println()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+func loadFromFile(path string) ([]byte, bool) {
+    out, err := os.ReadFile(path)
+    if err != nil {
+        fmt.Printf("Error reading: '%s'\n", path)
+        return nil, false
+    }
+    return out, true
+}
 
 func logDebug(fmtstr string, args ...any) {
     if DEBUG {

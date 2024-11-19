@@ -17,11 +17,10 @@ import System.IO (hPutStrLn, stderr)
 import System.Environment (getProgName, getArgs)
 import System.Console.GetOpt
 import Data.Foldable (for_)
-import System.Exit (exitFailure, exitSuccess)
+import System.Exit (exitFailure, exitSuccess, die)
 import Control.Monad.Reader (runReaderT, runReader)
 
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BSC
 import Data.Word (Word8)
 
 defaultOptions :: Config
@@ -30,24 +29,21 @@ defaultOptions = Config {
     version = False,
     debug = False,
     algorithm = "",
-    saltSource = "",
-    macKeySource = "",
+    keySource = "",
     iterations = 1,
-    derivedKeyLength = 4
+    derivedKeyLength = 60
 }
-
-defaultSalt :: String
-defaultSalt = "abcd"
-
-defaultMACKey :: String
-defaultMACKey = "abcd"
 
 usage :: IO ()
 usage = do
     programName <- getProgName
     let header = "USAGE:\n" ++
                  programName ++ " [OPTIONS]\n\n" ++
-                 "Calculate hashes etc. of input from stdin\n\n" ++
+                 "Calculate hashes etc. of input from stdin.\n\n" ++
+                 "STDIN:\n" ++
+                 "  Acts as the input stream for hash algorithms\n" ++
+                 "  Acts as the input message for HMAC\n" ++
+                 "  Acts as the salt for PBKDF2\n\n" ++
                  "OPTIONS:"
     hPutStrLn stderr $ usageInfo header options
 
@@ -82,25 +78,20 @@ options = [
         ) "algorithm")
         "Select algorithm [md5,sha1,sha224,sha256,hmac,pbkdf2]",
 
-        Option ['s'] ["salt"] (ReqArg (\arg opt ->
-            return opt { saltSource = arg }
-        ) "stream")
-        ("Input stream for salt to use for key derivation: [default: " ++ defaultSalt ++ "]"),
-
         Option ['k'] ["key"] (ReqArg (\arg opt ->
-            return opt { macKeySource = arg }
+            return opt { keySource = arg }
         ) "stream")
-        ("Input stream for key to use for MAC: [default: " ++ defaultMACKey ++ "]"),
+        "hmac,pbkdf2: Key material input stream",
 
         Option ['i'] ["iterations"] (ReqArg (\arg opt ->
             return opt { iterations = stringToInt arg }
         ) "count")
-        ("Iterations to use for key derivation [default: " ++ intToString (iterations defaultOptions) ++ "]"),
+        ("pbkdf2: Iterations to use for key derivation [default: " ++ intToString (iterations defaultOptions) ++ "]"),
 
         Option ['l'] ["length"] (ReqArg (\arg opt ->
             return opt { derivedKeyLength = stringToInt arg }
         ) "count")
-        ("Length of derived key to generate [default: " ++ intToString (derivedKeyLength defaultOptions) ++ " bytes]")
+        ("pbkdf2: Length of derived key to generate [default: " ++ intToString (derivedKeyLength defaultOptions) ++ " bytes]")
     ]
 
 main :: IO ()
@@ -122,7 +113,7 @@ main = do
     input <- BS.getContents
     let bytes :: [Word8] = BS.unpack input
 
-    runReaderT (debug'' "input [%d byte(s)]: %s \n" 
+    runReaderT (debug'' "input [%d byte(s)]: %s \n"
                 (length bytes)
                 (word8ArrayToHexArray bytes 64)) opts
 
@@ -144,11 +135,11 @@ main = do
             putStrLn $ word8ArrayToHexString digest 32
 
         "hmac" -> do
-            macKeyByteString <- if macKeySource opts == ""
-                              then return (BSC.pack defaultMACKey)
-                              else BS.readFile (macKeySource opts)
-            let macKey = BS.unpack macKeyByteString
-            runReaderT (debug'' "[Hmac] key [%d byte(s)]: %s\n" 
+            keyByteString <- if keySource opts == ""
+                              then die "No key data provided"
+                              else BS.readFile (keySource opts)
+            let macKey = BS.unpack keyByteString
+            runReaderT (debug'' "[Hmac] key [%d byte(s)]: %s\n"
                 (length macKey)
                 (word8ArrayToHexArray macKey (length macKey))) opts
 
@@ -157,15 +148,15 @@ main = do
             putStrLn $ word8ArrayToHexString mac 32
 
         "pbkdf2" -> do
-            saltByteString <- if saltSource opts == ""
-                              then return (BSC.pack defaultSalt)
-                              else BS.readFile (saltSource opts)
-            let salt = BS.unpack saltByteString
-            runReaderT (debug'' "[Pbkdf2] salt [%d byte(s)]: %s\n" 
-                (length salt)
-                (word8ArrayToHexArray salt (length salt))) opts
+            keyByteString <- if keySource opts == ""
+                              then die "No key data provided"
+                              else BS.readFile (keySource opts)
+            let pbkdf2Key = BS.unpack keyByteString
+            runReaderT (debug'' "[Pbkdf2] key [%d byte(s)]: %s\n"
+                (length pbkdf2Key)
+                (word8ArrayToHexArray pbkdf2Key (length pbkdf2Key))) opts
 
-            let derivedKey = runReader (Pbkdf2.deriveKey bytes salt 
+            let derivedKey = runReader (Pbkdf2.deriveKey pbkdf2Key bytes
                                         (iterations opts)
                                         (derivedKeyLength opts)) opts
             putStrLn $ word8ArrayToHexString derivedKey 32
