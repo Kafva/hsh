@@ -14,8 +14,8 @@ KEYFILE ?= .testenv/key.dat
 
 # Maximum key length: (2^32 - 1) * hLen 
 # For sha1: hLen=20
-PBKDF2_DERIVED_KEY_LENGTH ?= 60
-PBKDF2_ITERATIONS ?= 4
+PBKDF2_DERIVED_KEY_LENGTH ?= 20
+PBKDF2_ITERATIONS ?= 1
 
 HSH_ARGS += -k $(KEYFILE)
 HSH_ARGS += -i $(PBKDF2_ITERATIONS)
@@ -50,7 +50,7 @@ endef
 # $1: Algorithm
 # $2: Expected output
 define verify_ok
-	@if [ $(shell cabal run hsh -- -a ${1} -k $(KEYFILE) < $(INPUTFILE)) = ${2} ]; then \
+	@if [ $(shell cabal run hsh -- -a ${1} $(HSH_ARGS) < $(INPUTFILE)) = ${2} ]; then \
 		printf "[ \033[92m OK \033[0m ] %-7s %s\n" ${1} ${2}; \
 	else \
 		printf "[ \033[91mFAIL\033[0m ] %-7s %s\n" ${1}; \

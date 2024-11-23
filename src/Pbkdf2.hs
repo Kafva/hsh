@@ -4,11 +4,10 @@ import Data.Binary (Word8, Word32)
 import Control.Monad.Reader
 import Data.Bits (xor)
 import Types (Config)
-import Log (trace')
+import Log (trace', trace'')
 import Util (word32ToWord8ArrayBE, word8ArrayToHexArray)
 import Hmac
 import Sha1 (hash)
-import Data.Foldable (foldl', foldlM)
 
 -- Output length of the underlying hash function (sha1)
 hLen :: Int
@@ -23,6 +22,31 @@ prf :: [Word8] -> [Word8] -> Reader Config [Word8]
 prf password bytes = do
     Hmac.calculate bytes password hash hLen
 
+-- Accumlate `bytes` split into hLen blocks into one block with xor
+mapAccumXor :: [Word8] -> [Word8] -> Reader Config [Word8]
+mapAccumXor accumlator bytes
+    | length bytes <= hLen = do
+        return (zipWith xor accumlator (take hLen bytes))
+    | otherwise = do
+        mapAccumXor (zipWith xor accumlator (take hLen bytes)) (drop hLen bytes)
+
+
+-- Return a flat array of [U_1, U_2, ... U_c]
+calculateU :: [Word8] -> [Word8] -> [Word8] -> Word32 -> Int -> Reader Config [Word8]
+calculateU password bytes accumlator i limit
+    | fromIntegral i == limit = do
+        u_limit <- prf password bytes
+        return (accumlator ++ u_limit)
+    | otherwise = do
+        u_next <- calculateU password bytes accumlator (i+1) limit
+        return (accumlator ++ u_next)
+
+calculateT :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
+calculateT password salt iterations i = do
+    cfg <- ask
+    let bytes = salt ++ word32ToWord8ArrayBE (fromIntegral i)
+    let uBlocks = runReader (calculateU password bytes [] (fromIntegral i) iterations) cfg
+    mapAccumXor (replicate hLen 0) uBlocks
 
 
 {-
@@ -42,51 +66,27 @@ prf password bytes = do
  -     ...
  -     U_c = PRF (P, U_{c-1}) .
  -
+ - Result:
+ -     DK = T_1 || T_2 ||  ...  || T_l<0..r-1>
  -
- - Basically, there is an outer loop for each block of the derivedKey
- - and an inner loop that runs `iterations` times.
- -
- -
- - We use HMAC-SHA1 as the PRF
+ - We use HMAC-SHA1 as the PRF.
  -
  - https://www.ietf.org/rfc/rfc2898.txt
  -}
-
-
--- Accumlate `bytes` split into hLen blocks into one block with xor
-mapAccumXor :: [Word8] -> [Word8] -> Reader Config [Word8]
-mapAccumXor acc bytes
-    | length bytes <= hLen = do
-        return (zipWith xor acc (take hLen bytes))
-    | otherwise = do
-        mapAccumXor (zipWith xor acc (take hLen bytes)) (drop hLen bytes)
-    
-
--- Return a flat array of [U_1, U_2, ... U_c]
-u :: [Word8] -> [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
-u password bytes accumlator i limit
-    | i == limit = do 
-        u_limit <- prf password bytes
-        let ret = accumlator ++ u_limit
-        return ret
-    | otherwise = do 
-        u_next <- u password bytes accumlator (i+1) limit
-        let ret = accumlator ++ u_next
-        return ret
-
 deriveKey :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
 deriveKey password salt iterations derivedKeyLength
-    | derivedKeyLength > (2 ^ (22 :: Int) - 1) * hLen = error "Derived key length to large"
+    | derivedKeyLength > (2 ^ (32 :: Int) - 1) * hLen = error "Derived key length to large"
     | otherwise = do
-    cfg <- ask
     let lastBlockByteCount = mod derivedKeyLength hLen
     let derivedBlockCount = if lastBlockByteCount == 0 then 
                                 div derivedKeyLength hLen else
                                 div derivedKeyLength hLen + 1
 
-    let acc :: [Word8] = []
-    let s1 = salt ++ word32ToWord8ArrayBE 0x1
-    let uBlocks = runReader (u password s1 acc 1 iterations) cfg
-    let t1 = runReader (mapAccumXor (replicate hLen 0) uBlocks) cfg
+    -- Calculate each block of the derived key.
+    -- mapM acts like fmap for functions that return monads (Reader), all
+    -- arguments except `i` are fixed.
+    dks <- mapM (calculateT password salt iterations) [1..derivedBlockCount]
+    -- Concatenate everything together for the result
+    let dk = concat dks
 
-    trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray t1 derivedKeyLength) t1
+    trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray dk derivedKeyLength) dk

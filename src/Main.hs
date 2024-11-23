@@ -30,7 +30,7 @@ defaultOptions = Config {
     debug = False,
     algorithm = "",
     keySource = "",
-    iterations = 1,
+    iterations = 4,
     derivedKeyLength = 60
 }
 
@@ -159,7 +159,7 @@ main = do
             let derivedKey = runReader (Pbkdf2.deriveKey pbkdf2Key bytes
                                         (iterations opts)
                                         (derivedKeyLength opts)) opts
-            putStrLn $ word8ArrayToHexString derivedKey 32
+            putStrLn $ word8ArrayToHexString derivedKey (derivedKeyLength opts)
 
         alg ->
             if alg == ""
