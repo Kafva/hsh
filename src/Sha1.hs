@@ -65,7 +65,8 @@ processW w digest t = do
     let newA = rotateL a 5 + f t b c d + e + (w!!t) + getK t
     let newC = rotateL b 30
     let newDigest = [newA, a, newC, c, d]
-    trace'' "[Sha1] t=%d %s" t (show newDigest) newDigest
+    -- trace'' "[Sha1] t=%d %s" t (show newDigest) newDigest
+    return newDigest
 
 processBlock :: Sha1Digest -> Block -> Reader Config Sha1Digest
 processBlock digest block = do

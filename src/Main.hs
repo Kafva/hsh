@@ -152,14 +152,19 @@ main = do
                               then die "No key data provided"
                               else BS.readFile (keySource opts)
             let pbkdf2Key = BS.unpack keyByteString
+
             runReaderT (debug'' "[Pbkdf2] key [%d byte(s)]: %s\n"
                 (length pbkdf2Key)
                 (word8ArrayToHexArray pbkdf2Key (length pbkdf2Key))) opts
 
+            runReaderT (debug'' "[Pbkdf2] iterations %d: derivedKeyLength: %d\n"
+                (iterations opts)
+                (derivedKeyLength opts)) opts
+
             let derivedKey = runReader (Pbkdf2.deriveKey pbkdf2Key bytes
                                         (iterations opts)
                                         (derivedKeyLength opts)) opts
-            putStrLn $ word8ArrayToHexString derivedKey (derivedKeyLength opts)
+            putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
 
         alg ->
             if alg == ""

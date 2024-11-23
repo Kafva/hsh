@@ -30,24 +30,22 @@ mapAccumXor accumlator bytes
     | otherwise = do
         mapAccumXor (zipWith xor accumlator (take hLen bytes)) (drop hLen bytes)
 
-
 -- Return a flat array of [U_1, U_2, ... U_c]
 calculateU :: [Word8] -> [Word8] -> [Word8] -> Word32 -> Int -> Reader Config [Word8]
-calculateU password bytes accumlator i limit
-    | fromIntegral i == limit = do
-        u_limit <- prf password bytes
-        return (accumlator ++ u_limit)
+calculateU password bytes accumlator i iterations 
+    | i == fromIntegral iterations + 1 = return accumlator
     | otherwise = do
-        u_next <- calculateU password bytes accumlator (i+1) limit
-        return (accumlator ++ u_next)
+        currentU <- prf password bytes
+        nextU <- calculateU password currentU (accumlator ++ currentU) (i+1) iterations
+        trace'' "[Pbkdf2] T(i=%d) %s" i (word8ArrayToHexArray nextU 200) nextU
 
 calculateT :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
 calculateT password salt iterations i = do
     cfg <- ask
     let bytes = salt ++ word32ToWord8ArrayBE (fromIntegral i)
-    let uBlocks = runReader (calculateU password bytes [] (fromIntegral i) iterations) cfg
+    let start = min i iterations
+    let uBlocks = runReader (calculateU password bytes [] (fromIntegral start) iterations) cfg
     mapAccumXor (replicate hLen 0) uBlocks
-
 
 {-
  - PBKDF2 (P, S, c, dkLen)
@@ -78,6 +76,7 @@ deriveKey password salt iterations derivedKeyLength
     | derivedKeyLength > (2 ^ (32 :: Int) - 1) * hLen = error "Derived key length to large"
     | otherwise = do
     let lastBlockByteCount = mod derivedKeyLength hLen
+    -- One extra block if not evenly divisible
     let derivedBlockCount = if lastBlockByteCount == 0 then 
                                 div derivedKeyLength hLen else
                                 div derivedKeyLength hLen + 1
