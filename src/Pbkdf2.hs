@@ -53,15 +53,13 @@ prf password bytes = do
  -}
 
 
-xorAccumlate :: [Word8] -> [Word8] -> Reader Config [Word8]
-xorAccumlate acc uBlocks
-    | length uBlocks <= hLen = do
-        let block = (take hLen uBlocks)
-        return block
+-- Accumlate `bytes` split into hLen blocks into one block with xor
+mapAccumXor :: [Word8] -> [Word8] -> Reader Config [Word8]
+mapAccumXor acc bytes
+    | length bytes <= hLen = do
+        return (zipWith xor acc (take hLen bytes))
     | otherwise = do
-        let block = (take hLen uBlocks)
-        xorAccumlate acc (drop hLen uBlocks)
-    
+        mapAccumXor (zipWith xor acc (take hLen bytes)) (drop hLen bytes)
     
 
 -- Return a flat array of [U_1, U_2, ... U_c]
@@ -89,5 +87,6 @@ deriveKey password salt iterations derivedKeyLength
     let acc :: [Word8] = []
     let s1 = salt ++ word32ToWord8ArrayBE 0x1
     let uBlocks = runReader (u password s1 acc 1 iterations) cfg
+    let t1 = runReader (mapAccumXor (replicate hLen 0) uBlocks) cfg
 
-    trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray uBlocks derivedKeyLength) uBlocks
+    trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray t1 derivedKeyLength) t1
