@@ -51,6 +51,31 @@ prf password bytes = do
  -
  - https://www.ietf.org/rfc/rfc2898.txt
  -}
+
+
+xorAccumlate :: [Word8] -> [Word8] -> Reader Config [Word8]
+xorAccumlate acc uBlocks
+    | length uBlocks <= hLen = do
+        let block = (take hLen uBlocks)
+        return block
+    | otherwise = do
+        let block = (take hLen uBlocks)
+        xorAccumlate acc (drop hLen uBlocks)
+    
+    
+
+-- Return a flat array of [U_1, U_2, ... U_c]
+u :: [Word8] -> [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
+u password bytes accumlator i limit
+    | i == limit = do 
+        u_limit <- prf password bytes
+        let ret = accumlator ++ u_limit
+        return ret
+    | otherwise = do 
+        u_next <- u password bytes accumlator (i+1) limit
+        let ret = accumlator ++ u_next
+        return ret
+
 deriveKey :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
 deriveKey password salt iterations derivedKeyLength
     | derivedKeyLength > (2 ^ (22 :: Int) - 1) * hLen = error "Derived key length to large"
@@ -61,7 +86,8 @@ deriveKey password salt iterations derivedKeyLength
                                 div derivedKeyLength hLen else
                                 div derivedKeyLength hLen + 1
 
-    let s1 = salt ++ [0x1, 0x0, 0x0, 0x0]
-    let u1 = runReader (prf password s1) cfg
+    let acc :: [Word8] = []
+    let s1 = salt ++ word32ToWord8ArrayBE 0x1
+    let uBlocks = runReader (u password s1 acc 1 iterations) cfg
 
-    trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray u1 derivedKeyLength) u1
+    trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray uBlocks derivedKeyLength) uBlocks

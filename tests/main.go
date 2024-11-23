@@ -113,7 +113,7 @@ func logDebug(fmtstr string, args ...any) {
 }
 
 func dumpWordArray(label string, arr []byte) {
-    logDebug("%s [%d byte(s)]: [", label, len(arr))
+    logDebug("%s [%d byte(s)]: [ ", label, len(arr))
     for i := range arr {
         logDebug("0x%x ", arr[i])
     }
