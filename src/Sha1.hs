@@ -5,7 +5,7 @@ import Control.Monad.Reader
 import Data.Foldable (foldl', foldlM)
 import Data.Binary (Word8, Word32)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
-import Log (trace', trace'')
+import Log (trace')
 import Types (Config, Sha1Digest, Sha1ArrayW, Block)
 import Util (padSha1Input,
              word8ArrayToHexArray,

@@ -90,4 +90,4 @@ deriveKey password salt iterations derivedKeyLength
     -- Concatenate all blocks together for the result
     dk <- trace' "[Pbkdf2] derivedBlockCount: %d\n" derivedBlockCount $ concat ts
 
-    trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray dk derivedKeyLength) dk
+    trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray dk derivedKeyLength) (take derivedKeyLength dk)

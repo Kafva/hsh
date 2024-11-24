@@ -30,8 +30,8 @@ defaultOptions = Config {
     debug = False,
     algorithm = "",
     keySource = "",
-    iterations = 4,
-    derivedKeyLength = 60
+    iterations = 512,
+    derivedKeyLength = 64
 }
 
 usage :: IO ()
