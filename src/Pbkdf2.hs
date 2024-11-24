@@ -31,20 +31,20 @@ mapAccumXor accumlator bytes
         mapAccumXor (zipWith xor accumlator (take hLen bytes)) (drop hLen bytes)
 
 -- Return a flat array of [U_1, U_2, ... U_c]
-calculateU :: [Word8] -> [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
-calculateU password bytes accumlator i iterations 
+calculateU :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
+calculateU password accumlator i iterations 
     | i == iterations + 1 = return accumlator
     | otherwise = do
-        currentU <- prf password bytes
-        -- We need to pass both the accumlation and the standalone U_i value
-        -- to the next call.
-        calculateU password currentU (accumlator ++ currentU) (i+1) iterations
+        -- Pick out the block from the previous iteration from the accumlator
+        currentU <- prf password ((reverse . take hLen . reverse) accumlator)
+        calculateU password (accumlator ++ currentU) (i+1) iterations
 
 calculateT :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
 calculateT password salt iterations blockIndex = do
     cfg <- ask
     let bytes = salt ++ word32ToWord8ArrayBE (fromIntegral blockIndex)
-    let blocksU = runReader (calculateU password bytes [] 1 iterations) cfg
+    accumlator <- prf password bytes
+    let blocksU = runReader (calculateU password accumlator 2 iterations) cfg
     mapAccumXor (replicate hLen 0) blocksU
 
 {-
