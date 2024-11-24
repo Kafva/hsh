@@ -1,10 +1,10 @@
 module Pbkdf2 (deriveKey) where
 
-import Data.Binary (Word8, Word32)
+import Data.Binary (Word8)
 import Control.Monad.Reader
 import Data.Bits (xor)
 import Types (Config)
-import Log (trace', trace'')
+import Log (trace')
 import Util (word32ToWord8ArrayBE, word8ArrayToHexArray)
 import Hmac
 import Sha1 (hash)
@@ -13,7 +13,7 @@ import Sha1 (hash)
 hLen :: Int
 hLen = 20
 
--- From the RFC: "In the case of PBKDF2, the "key" is thus the password and the 
+-- From the RFC: "In the case of PBKDF2, the "key" is thus the password and the
 -- "text" is the salt". I.e.
 --  password     --> hmac 'secret key'
 --  bytes        --> hmac 'message'
@@ -31,20 +31,22 @@ mapAccumXor accumlator bytes
         mapAccumXor (zipWith xor accumlator (take hLen bytes)) (drop hLen bytes)
 
 -- Return a flat array of [U_1, U_2, ... U_c]
-calculateU :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
-calculateU password accumlator i iterations 
-    | i == iterations + 1 = return accumlator
+calculateU :: [Word8] -> [[Word8]] -> Int -> Int -> Reader Config [Word8]
+calculateU password accumlator i iterations
+    | i == iterations + 1 = return (concat (reverse accumlator))
     | otherwise = do
         -- Pick out the block from the previous iteration from the accumlator
-        currentU <- prf password ((reverse . take hLen . reverse) accumlator)
-        calculateU password (accumlator ++ currentU) (i+1) iterations
+        currentU <- prf password (head accumlator)
+        -- Note: we prepend the lastest U to the accumlator (so that we can use `head`),
+        -- the final return value needs to be blockwise reversed with this approach!
+        calculateU password (currentU : accumlator) (i+1) iterations
 
 calculateT :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
 calculateT password salt iterations blockIndex = do
     cfg <- ask
-    let bytes = salt ++ word32ToWord8ArrayBE (fromIntegral blockIndex)
-    accumlator <- prf password bytes
-    let blocksU = runReader (calculateU password accumlator 2 iterations) cfg
+    let s1 = salt ++ word32ToWord8ArrayBE (fromIntegral blockIndex)
+    u1 <- prf password s1
+    let blocksU = runReader (calculateU password [u1] 2 iterations) cfg
     mapAccumXor (replicate hLen 0) blocksU
 
 {-
@@ -76,7 +78,7 @@ deriveKey password salt iterations derivedKeyLength
     | derivedKeyLength > (2 ^ (32 :: Int) - 1) * hLen = error "Derived key length to large"
     | otherwise = do
     let lastBlockByteCount = mod derivedKeyLength hLen
-    let derivedBlockCount = if lastBlockByteCount == 0 then 
+    let derivedBlockCount = if lastBlockByteCount == 0 then
                                 div derivedKeyLength hLen else
                                 -- One extra block if not evenly divisible
                                 div derivedKeyLength hLen + 1
