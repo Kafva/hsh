@@ -22,7 +22,7 @@ prf :: [Word8] -> [Word8] -> Reader Config [Word8]
 prf password bytes = do
     Hmac.calculate bytes password hash hLen
 
--- Accumlate `bytes` split into hLen blocks into one block with xor
+-- Accumlate the hLen blocks of `bytes` into one block with xor
 mapAccumXor :: [Word8] -> [Word8] -> Reader Config [Word8]
 mapAccumXor accumlator bytes
     | length bytes <= hLen = do
@@ -37,15 +37,14 @@ calculateU password bytes accumlator i iterations
     | otherwise = do
         currentU <- prf password bytes
         nextU <- calculateU password currentU (accumlator ++ currentU) (i+1) iterations
-        trace'' "[Pbkdf2] T(i=%d) %s" i (word8ArrayToHexArray nextU 200) nextU
+        trace'' "[Pbkdf2] T(i=%d) %s" i (word8ArrayToHexArray nextU (length nextU)) nextU
 
 calculateT :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
 calculateT password salt iterations i = do
     cfg <- ask
     let bytes = salt ++ word32ToWord8ArrayBE (fromIntegral i)
-    let start = min i iterations
-    let uBlocks = runReader (calculateU password bytes [] (fromIntegral start) iterations) cfg
-    mapAccumXor (replicate hLen 0) uBlocks
+    let blocksU = runReader (calculateU password bytes [] 1 iterations) cfg
+    mapAccumXor (replicate hLen 0) blocksU
 
 {-
  - PBKDF2 (P, S, c, dkLen)
@@ -76,16 +75,16 @@ deriveKey password salt iterations derivedKeyLength
     | derivedKeyLength > (2 ^ (32 :: Int) - 1) * hLen = error "Derived key length to large"
     | otherwise = do
     let lastBlockByteCount = mod derivedKeyLength hLen
-    -- One extra block if not evenly divisible
     let derivedBlockCount = if lastBlockByteCount == 0 then 
                                 div derivedKeyLength hLen else
+                                -- One extra block if not evenly divisible
                                 div derivedKeyLength hLen + 1
 
     -- Calculate each block of the derived key.
     -- mapM acts like fmap for functions that return monads (Reader), all
     -- arguments except `i` are fixed.
-    dks <- mapM (calculateT password salt iterations) [1..derivedBlockCount]
-    -- Concatenate everything together for the result
-    let dk = concat dks
+    ts <- mapM (calculateT password salt iterations) [1..derivedBlockCount]
+    -- Concatenate all blocks together for the result
+    dk <- trace' "[Pbkdf2] derivedBlockCount: %d\n" derivedBlockCount $ concat ts
 
     trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray dk derivedKeyLength) dk

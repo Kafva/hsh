@@ -157,7 +157,7 @@ main = do
                 (length pbkdf2Key)
                 (word8ArrayToHexArray pbkdf2Key (length pbkdf2Key))) opts
 
-            runReaderT (debug'' "[Pbkdf2] iterations %d: derivedKeyLength: %d\n"
+            runReaderT (debug'' "[Pbkdf2] iterations: %d, derivedKeyLength: %d\n"
                 (iterations opts)
                 (derivedKeyLength opts)) opts
 
