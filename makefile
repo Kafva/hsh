@@ -80,7 +80,7 @@ $(INPUTFILE):
 $(KEYFILE):
 	mkdir -p $(dir $@)
 	@# echo -n abc > $@
-	dd if=/dev/urandom of=$@ bs=32 count=1
+	dd if=/dev/urandom of=$@ bs=1 count=32
 
 test-md5: $(INPUTFILE)
 	$(call verify_alg,md5,md5sum,Md5-RFC,\

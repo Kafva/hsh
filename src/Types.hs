@@ -22,6 +22,7 @@ data Config = Config {
     version :: Bool,
     debug :: Bool,
     algorithm :: String,
+    innerAlgorithm :: String,
     keySource :: String,
     iterations :: Int,
     derivedKeyLength :: Int

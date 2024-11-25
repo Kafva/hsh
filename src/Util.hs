@@ -171,4 +171,3 @@ stringToInt = read
 
 intToString :: Int -> String
 intToString = show
-

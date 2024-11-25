@@ -18,7 +18,7 @@ import System.Environment (getProgName, getArgs)
 import System.Console.GetOpt
 import Data.Foldable (for_)
 import System.Exit (exitFailure, exitSuccess, die)
-import Control.Monad.Reader (runReaderT, runReader)
+import Control.Monad.Reader (runReaderT, runReader, Reader)
 
 import qualified Data.ByteString as BS
 import Data.Word (Word8)
@@ -29,6 +29,7 @@ defaultOptions = Config {
     version = False,
     debug = False,
     algorithm = "",
+    innerAlgorithm = "sha1",
     keySource = "",
     iterations = 512,
     derivedKeyLength = 64
@@ -76,7 +77,12 @@ options = [
         Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
             return opt { algorithm = arg }
         ) "algorithm")
-        "Select algorithm [md5,sha1,sha224,sha256,hmac,pbkdf2]",
+        "Select algorithm [md5,sha1,sha224,sha256,hmac,pbkdf2,scrypt]",
+
+        Option ['H'] ["hash"] (ReqArg (\arg opt ->
+            return opt { innerAlgorithm = arg }
+        ) "hash")
+        "hmac,pbkdf2: Select underlying hash algorithm [md5,sha1,sha224,sha256]",
 
         Option ['k'] ["key"] (ReqArg (\arg opt ->
             return opt { keySource = arg }
@@ -93,6 +99,14 @@ options = [
         ) "count")
         ("pbkdf2: Length of derived key to generate [default: " ++ intToString (derivedKeyLength defaultOptions) ++ " bytes]")
     ]
+
+stringToHashAlgorithm :: String -> ([Word8] -> Reader Config [Word8], Int)
+stringToHashAlgorithm s = case s of
+     "md5" -> (Md5.hash, 16)
+     "sha1" -> (Sha1.hash, 20)
+     "sha224" -> (Sha256.hash224, 28)
+     "sha256" -> (Sha256.hash256, 32)
+     _ -> error ("Unknown hash algorithm: '" ++ s ++ "'")
 
 main :: IO ()
 main = do
@@ -118,21 +132,10 @@ main = do
                 (word8ArrayToHexArray bytes 64)) opts
 
     case algorithm opts of
-        "md5"  -> do
-            let digest = runReader (Md5.hash bytes) opts
-            putStrLn $ word8ArrayToHexString digest 16
-
-        "sha1" -> do
-            let digest = runReader (Sha1.hash bytes) opts
-            putStrLn $ word8ArrayToHexString digest 20
-
-        "sha224" -> do
-            let digest = runReader (Sha256.hash bytes 28) opts
-            putStrLn $ word8ArrayToHexString digest 28
-
-        "sha256" -> do
-            let digest = runReader (Sha256.hash bytes 32) opts
-            putStrLn $ word8ArrayToHexString digest 32
+        s | s == "md5" || s == "sha1" || s == "sha224" || s == "sha256" -> do
+            let (hashFunction, outLength) = stringToHashAlgorithm (algorithm opts)
+            let digest = runReader (hashFunction bytes) opts
+            putStrLn $ word8ArrayToHexString digest outLength
 
         "hmac" -> do
             keyByteString <- if keySource opts == ""
@@ -143,8 +146,10 @@ main = do
                 (length macKey)
                 (word8ArrayToHexArray macKey (length macKey))) opts
 
+            let (hashFunction, outLength) = stringToHashAlgorithm (innerAlgorithm opts)
+
             -- Always use Sha1 as the hash function
-            let mac = runReader (Hmac.calculate bytes macKey Sha1.hash 20) opts
+            let mac = runReader (Hmac.calculate bytes macKey hashFunction outLength) opts
             putStrLn $ word8ArrayToHexString mac 32
 
         "pbkdf2" -> do
@@ -165,6 +170,8 @@ main = do
                                         (iterations opts)
                                         (derivedKeyLength opts)) opts
             putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
+        "scrypt" -> do
+            putStrLn $ word8ArrayToHexString [0x0] 20
 
         alg ->
             if alg == ""

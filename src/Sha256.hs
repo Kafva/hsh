@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use head" #-}
 
-module Sha256 (hash) where
+module Sha256 (hash224, hash256) where
 
 import Control.Monad.Reader
 import Data.Foldable (foldl', foldlM)
@@ -153,3 +155,10 @@ hash bytes digestLength = do
 
     trace' "[Sha256] output: %s" (showDigestArray finalDigest digestLength) $
         word32ArrayToWord8ArrayBE finalDigest
+
+hash224 :: [Word8] -> Reader Config [Word8]
+hash224 bytes = hash bytes 28
+
+hash256 :: [Word8] -> Reader Config [Word8]
+hash256 bytes = hash bytes 32
+
