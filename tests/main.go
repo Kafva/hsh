@@ -4,9 +4,11 @@ import (
     "bufio"
     "crypto/hmac"
     "crypto/sha1"
+    "crypto/sha256"
     "encoding/hex"
     "flag"
     "fmt"
+    "hash"
     "os"
     "path"
     "strconv"
@@ -15,12 +17,15 @@ import (
 )
 
 var DEBUG = false
+var INNER_ALG = sha1.New
 
 func main() {
     debug := flag.Bool("d", false, "Enable debug logging")
+    innerAlgorithm := flag.String("H", "", "Inner hash algorithm [default: sha1]")
     flag.Parse()
     args := flag.Args()
     DEBUG = *debug
+    INNER_ALG = stringToAlgorithm(*innerAlgorithm)
 
     switch path.Base(os.Args[0]) {
     case "hmac":
@@ -52,7 +57,7 @@ func runHmac(args []string) {
     dumpWordArray("message", message)
     dumpWordArray("key", key)
 
-    mac := hmac.New(sha1.New, key)
+    mac := hmac.New(INNER_ALG, key)
     mac.Write(message)
     digest := mac.Sum(nil)
 
@@ -82,7 +87,7 @@ func runPbkdf2(args []string) {
     iterations, _ := strconv.Atoi(args[2])
     length, _ := strconv.Atoi(args[3])
 
-    dk := pbkdf2.Key(password, salt, iterations, length, sha1.New)
+    dk := pbkdf2.Key(password, salt, iterations, length, INNER_ALG)
     dumpWordArray("output", dk)
     writeResult(dk)
 }
@@ -109,6 +114,14 @@ func loadFromFile(path string) ([]byte, bool) {
 func logDebug(fmtstr string, args ...any) {
     if DEBUG {
         fmt.Fprintf(os.Stderr, fmtstr, args...)
+    }
+}
+
+func stringToAlgorithm(name string) func() hash.Hash {
+    if (name == "sha256") {
+        return sha256.New
+    } else {
+        return sha1.New
     }
 }
 

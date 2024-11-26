@@ -114,7 +114,6 @@ options = [
         ("pbkdf2: Length of derived key to generate [default: " ++ intToString (derivedKeyLength defaultOptions) ++ " bytes]")
     ]
 
-
 main :: IO ()
 main = do
     args <- getArgs

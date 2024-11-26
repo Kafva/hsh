@@ -16,10 +16,12 @@ KEYFILE ?= .testenv/key.dat
 # For sha1: hLen=20
 PBKDF2_DERIVED_KEY_LENGTH ?= 64
 PBKDF2_ITERATIONS ?= 512
+INNER_HASH_ALGORITHM ?= sha256
 
 HSH_ARGS += -k $(KEYFILE)
 HSH_ARGS += -i $(PBKDF2_ITERATIONS)
 HSH_ARGS += -l $(PBKDF2_DERIVED_KEY_LENGTH)
+HSH_ARGS += -H $(INNER_HASH_ALGORITHM)
 
 ################################################################################
 
@@ -100,11 +102,11 @@ test-sha256: $(INPUTFILE)
 
 test-hmac: build $(INPUTFILE) $(KEYFILE)
 	$(call verify_alg,hmac,,golang/x/crypto/hmac,\
-		tests/bin/hmac -d $(INPUTFILE) $(KEYFILE))
+		tests/bin/hmac -H $(INNER_HASH_ALGORITHM) -d $(INPUTFILE) $(KEYFILE))
 
 test-pbkdf2: build $(INPUTFILE) $(KEYFILE)
 	$(call verify_alg,pbkdf2,,golang/x/crypto/pbkdf2,\
-		tests/bin/pbkdf2 -d $(KEYFILE) $(INPUTFILE) \
+		tests/bin/pbkdf2 -H $(INNER_HASH_ALGORITHM) -d $(KEYFILE) $(INPUTFILE) \
 			$(PBKDF2_ITERATIONS) \
 			$(PBKDF2_DERIVED_KEY_LENGTH))
 
@@ -114,7 +116,7 @@ test: build $(INPUTFILE) $(KEYFILE)
 	$(call verify_ok,sha1,$(shell sha1sum < $(INPUTFILE) | awk '{print $$1}'))
 	$(call verify_ok,sha224,$(shell sha224sum < $(INPUTFILE) | awk '{print $$1}'))
 	$(call verify_ok,sha256,$(shell sha256sum < $(INPUTFILE) | awk '{print $$1}'))
-	$(call verify_ok,hmac,$(shell tests/bin/hmac $(INPUTFILE) $(KEYFILE)))
-	$(call verify_ok,pbkdf2,$(shell tests/bin/pbkdf2 $(KEYFILE) $(INPUTFILE) \
+	$(call verify_ok,hmac,$(shell tests/bin/hmac -H $(INNER_HASH_ALGORITHM) $(INPUTFILE) $(KEYFILE)))
+	$(call verify_ok,pbkdf2,$(shell tests/bin/pbkdf2 -H $(INNER_HASH_ALGORITHM) $(KEYFILE) $(INPUTFILE) \
 		$(PBKDF2_ITERATIONS) $(PBKDF2_DERIVED_KEY_LENGTH)))
 
