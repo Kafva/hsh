@@ -8,7 +8,7 @@ import Sha256
 import Pbkdf2
 import Hmac
 import Template
-import Types (Config(..))
+import Types (Config(..), HashSignature)
 import Util (word8ArrayToHexString, word8ArrayToHexArray, stringToInt, intToString)
 import Log (debug', debug'')
 
@@ -18,7 +18,7 @@ import System.Environment (getProgName, getArgs)
 import System.Console.GetOpt
 import Data.Foldable (for_)
 import System.Exit (exitFailure, exitSuccess, die)
-import Control.Monad.Reader (runReaderT, runReader, Reader)
+import Control.Monad.Reader (runReaderT, runReader)
 
 import qualified Data.ByteString as BS
 import Data.Word (Word8)
@@ -29,7 +29,8 @@ defaultOptions = Config {
     version = False,
     debug = False,
     algorithm = "",
-    innerAlgorithm = "sha1",
+    innerAlgorithm = Sha1.hash,
+    innerAlgorithmLength = 20,
     keySource = "",
     iterations = 512,
     derivedKeyLength = 64
@@ -48,6 +49,13 @@ usage = do
                  "OPTIONS:"
     hPutStrLn stderr $ usageInfo header options
 
+stringToHashAlgorithm :: String -> (HashSignature, Int)
+stringToHashAlgorithm s = case s of
+     "md5" -> (Md5.hash, 16)
+     "sha1" -> (Sha1.hash, 20)
+     "sha224" -> (Sha256.hash224, 28)
+     "sha256" -> (Sha256.hash256, 32)
+     _ -> error ("Unknown hash algorithm: '" ++ s ++ "'")
 
 -- OptDescr is a type that holds
 -- Option {
@@ -74,13 +82,19 @@ options = [
             exitFailure
         )) "Print help information",
 
-        Option ['a'] ["algorithm"] (ReqArg (\arg opt ->
-            return opt { algorithm = arg }
+        Option ['a'] ["algorithm"] (ReqArg (\arg opt -> do
+            return opt { 
+                algorithm = arg
+            }
         ) "algorithm")
         "Select algorithm [md5,sha1,sha224,sha256,hmac,pbkdf2,scrypt]",
 
-        Option ['H'] ["hash"] (ReqArg (\arg opt ->
-            return opt { innerAlgorithm = arg }
+        Option ['H'] ["hash"] (ReqArg (\arg opt -> do
+            let (hashFunction, hashLength) = stringToHashAlgorithm arg
+            return opt { 
+                innerAlgorithm = hashFunction, 
+                innerAlgorithmLength = hashLength
+            }
         ) "hash")
         "hmac,pbkdf2: Select underlying hash algorithm [md5,sha1,sha224,sha256]",
 
@@ -100,13 +114,6 @@ options = [
         ("pbkdf2: Length of derived key to generate [default: " ++ intToString (derivedKeyLength defaultOptions) ++ " bytes]")
     ]
 
-stringToHashAlgorithm :: String -> ([Word8] -> Reader Config [Word8], Int)
-stringToHashAlgorithm s = case s of
-     "md5" -> (Md5.hash, 16)
-     "sha1" -> (Sha1.hash, 20)
-     "sha224" -> (Sha256.hash224, 28)
-     "sha256" -> (Sha256.hash256, 32)
-     _ -> error ("Unknown hash algorithm: '" ++ s ++ "'")
 
 main :: IO ()
 main = do
@@ -137,39 +144,24 @@ main = do
             let digest = runReader (hashFunction bytes) opts
             putStrLn $ word8ArrayToHexString digest outLength
 
-        "hmac" -> do
+        s | s == "hmac" || s == "pbkdf2" -> do
             keyByteString <- if keySource opts == ""
                               then die "No key data provided"
                               else BS.readFile (keySource opts)
-            let macKey = BS.unpack keyByteString
-            runReaderT (debug'' "[Hmac] key [%d byte(s)]: %s\n"
-                (length macKey)
-                (word8ArrayToHexArray macKey (length macKey))) opts
+            let key = BS.unpack keyByteString
+            runReaderT (debug'' "key [%d byte(s)]: %s\n"
+                (length key)
+                (word8ArrayToHexArray key (length key))) opts
 
-            let (hashFunction, outLength) = stringToHashAlgorithm (innerAlgorithm opts)
+            case algorithm opts of
+                "hmac" -> do
+                    let mac = runReader (Hmac.calculate bytes key) opts
+                    putStrLn $ word8ArrayToHexString mac 32
+                "pbkdf2" -> do
+                    let derivedKey = runReader (Pbkdf2.deriveKey key bytes) opts
+                    putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
+                _ -> putStrLn $ "Invalid algorithm: " ++ algorithm opts
 
-            -- Always use Sha1 as the hash function
-            let mac = runReader (Hmac.calculate bytes macKey hashFunction outLength) opts
-            putStrLn $ word8ArrayToHexString mac 32
-
-        "pbkdf2" -> do
-            keyByteString <- if keySource opts == ""
-                              then die "No key data provided"
-                              else BS.readFile (keySource opts)
-            let pbkdf2Key = BS.unpack keyByteString
-
-            runReaderT (debug'' "[Pbkdf2] key [%d byte(s)]: %s\n"
-                (length pbkdf2Key)
-                (word8ArrayToHexArray pbkdf2Key (length pbkdf2Key))) opts
-
-            runReaderT (debug'' "[Pbkdf2] iterations: %d, derivedKeyLength: %d\n"
-                (iterations opts)
-                (derivedKeyLength opts)) opts
-
-            let derivedKey = runReader (Pbkdf2.deriveKey pbkdf2Key bytes
-                                        (iterations opts)
-                                        (derivedKeyLength opts)) opts
-            putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
         "scrypt" -> do
             putStrLn $ word8ArrayToHexString [0x0] 20
 

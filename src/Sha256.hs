@@ -9,7 +9,7 @@ import Data.Foldable (foldl', foldlM)
 import Data.Binary (Word8, Word32)
 import Data.Bits ((.&.), complement, xor, rotateR, shiftR)
 import Log (trace', trace'')
-import Types (Config, Block, Sha256Digest, Sha256ArrayW)
+import Types (Config, Block, Sha256Digest, Sha256ArrayW, HashSignature)
 import Util (padSha1Input,
              word8ArrayToHexArray,
              word8toWord32ArrayBE,
@@ -156,9 +156,9 @@ hash bytes digestLength = do
     trace' "[Sha256] output: %s" (showDigestArray finalDigest digestLength) $
         word32ArrayToWord8ArrayBE finalDigest
 
-hash224 :: [Word8] -> Reader Config [Word8]
+hash224 :: HashSignature
 hash224 bytes = hash bytes 28
 
-hash256 :: [Word8] -> Reader Config [Word8]
+hash256 :: HashSignature
 hash256 bytes = hash bytes 32
 

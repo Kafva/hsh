@@ -8,21 +8,28 @@ module Types (
     Sha256Digest,
     Sha1ArrayW,
     Sha256ArrayW,
-    Block
+    Block,
+    HashSignature
 ) where
 
 import Control.Monad.Reader
-import Data.Binary (Word32)
+import Data.Binary (Word32, Word8)
 
 -- A Monad stack that allows us to run both IO and read from the Config
 type ConfigMonad a = ReaderT Config IO a
+-- Function signature for hash functions
+type HashSignature = [Word8] -> Reader Config [Word8]
+
+instance Show HashSignature where
+    show _ = "<function>"
 
 data Config = Config {
     help :: Bool,
     version :: Bool,
     debug :: Bool,
     algorithm :: String,
-    innerAlgorithm :: String,
+    innerAlgorithm :: HashSignature,
+    innerAlgorithmLength :: Int,
     keySource :: String,
     iterations :: Int,
     derivedKeyLength :: Int

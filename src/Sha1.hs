@@ -6,7 +6,7 @@ import Data.Foldable (foldl', foldlM)
 import Data.Binary (Word8, Word32)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
 import Log (trace')
-import Types (Config, Sha1Digest, Sha1ArrayW, Block)
+import Types (Config, Sha1Digest, Sha1ArrayW, Block, HashSignature)
 import Util (padSha1Input,
              word8ArrayToHexArray,
              word8toWord32ArrayBE,
@@ -87,7 +87,7 @@ processBlock digest block = do
 {-
  - https://www.ietf.org/rfc/rfc3174.txt
  -}
-hash :: [Word8] -> Reader Config [Word8]
+hash :: HashSignature
 hash bytes = do
     -- * Pad the input
     let paddedBytes = padSha1Input bytes

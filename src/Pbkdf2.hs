@@ -3,15 +3,10 @@ module Pbkdf2 (deriveKey) where
 import Data.Binary (Word8)
 import Control.Monad.Reader
 import Data.Bits (xor)
-import Types (Config)
+import Types (Config(..))
 import Log (trace')
 import Util (word32ToWord8ArrayBE, word8ArrayToHexArray)
 import Hmac
-import Sha1 (hash)
-
--- Output length of the underlying hash function (sha1)
-hLen :: Int
-hLen = 20
 
 -- From the RFC: "In the case of PBKDF2, the "key" is thus the password and the
 -- "text" is the salt". I.e.
@@ -20,15 +15,15 @@ hLen = 20
 --  With bytes being (salt || INT) in the basecase
 prf :: [Word8] -> [Word8] -> Reader Config [Word8]
 prf password bytes = do
-    Hmac.calculate bytes password hash hLen
+    Hmac.calculate bytes password
 
 -- Accumlate the hLen blocks of `bytes` into one block with xor
-mapAccumXor :: [Word8] -> [Word8] -> Reader Config [Word8]
-mapAccumXor accumlator bytes
+mapAccumXor :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
+mapAccumXor accumlator bytes hLen
     | length bytes <= hLen = do
         return (zipWith xor accumlator (take hLen bytes))
     | otherwise = do
-        mapAccumXor (zipWith xor accumlator (take hLen bytes)) (drop hLen bytes)
+        mapAccumXor (zipWith xor accumlator (take hLen bytes)) (drop hLen bytes) hLen
 
 -- Return a flat array of [U_1, U_2, ... U_c]
 calculateU :: [Word8] -> [[Word8]] -> Int -> Int -> Reader Config [Word8]
@@ -41,13 +36,14 @@ calculateU password accumlator i iterations
         -- the final return value needs to be blockwise reversed with this approach!
         calculateU password (currentU : accumlator) (i+1) iterations
 
-calculateT :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
-calculateT password salt iterations blockIndex = do
+calculateT :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
+calculateT password salt blockIndex = do
     cfg <- ask
     let s1 = salt ++ word32ToWord8ArrayBE (fromIntegral blockIndex)
     u1 <- prf password s1
-    let blocksU = runReader (calculateU password [u1] 2 iterations) cfg
-    mapAccumXor (replicate hLen 0) blocksU
+    let hLen = innerAlgorithmLength cfg
+    let blocksU = runReader (calculateU password [u1] 2 (iterations cfg)) cfg
+    mapAccumXor (replicate hLen 0) blocksU hLen
 
 {-
  - PBKDF2 (P, S, c, dkLen)
@@ -73,21 +69,25 @@ calculateT password salt iterations blockIndex = do
  -
  - https://www.ietf.org/rfc/rfc2898.txt
  -}
-deriveKey :: [Word8] -> [Word8] -> Int -> Int -> Reader Config [Word8]
-deriveKey password salt iterations derivedKeyLength
-    | derivedKeyLength > (2 ^ (32 :: Int) - 1) * hLen = error "Derived key length to large"
-    | otherwise = do
-    let lastBlockByteCount = mod derivedKeyLength hLen
+deriveKey :: [Word8] -> [Word8] -> Reader Config [Word8]
+deriveKey password salt = do
+    cfg <- ask
+    let dkLen = derivedKeyLength cfg
+    let hLen = innerAlgorithmLength cfg
+
+    when (dkLen > (2 ^ (32 :: Int) - 1) * hLen) $ error "Derived key length to large"
+
+    let lastBlockByteCount = mod dkLen hLen
     let derivedBlockCount = if lastBlockByteCount == 0 then
-                                div derivedKeyLength hLen else
+                                div dkLen hLen else
                                 -- One extra block if not evenly divisible
-                                div derivedKeyLength hLen + 1
+                                div dkLen hLen + 1
 
     -- Calculate each block of the derived key.
     -- mapM acts like fmap for functions that return monads (Reader), all
     -- arguments except `i` are fixed.
-    ts <- mapM (calculateT password salt iterations) [1..derivedBlockCount]
+    ts <- mapM (calculateT password salt) [1..derivedBlockCount]
     -- Concatenate all blocks together for the result
     dk <- trace' "[Pbkdf2] derivedBlockCount: %d\n" derivedBlockCount $ concat ts
 
-    trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray dk derivedKeyLength) (take derivedKeyLength dk)
+    trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray dk dkLen) (take dkLen dk)

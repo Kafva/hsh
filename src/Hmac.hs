@@ -3,11 +3,9 @@ module Hmac (calculate) where
 import Data.Binary (Word8)
 import Control.Monad.Reader
 import Data.Bits (xor)
-import Types (Config)
+import Types (Config(..))
 import Log (trace')
 import Util (padEndZero, word8ArrayToHexArray)
-
-type HashSignature = [Word8] -> Reader Config [Word8]
 
 {-
  - "Message authentication codes" (MAC) are used to check the integrity of a
@@ -19,13 +17,14 @@ type HashSignature = [Word8] -> Reader Config [Word8]
  -
  -  digest = H(key XOR opad, H(key XOR ipad, message))
  -
- -
  - https://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf
  - https://www.ietf.org/rfc/rfc2104.txt
  -}
-calculate :: [Word8] -> [Word8] -> HashSignature -> Int -> Reader Config [Word8]
-calculate bytes key hashFunction hashSize = do
+calculate :: [Word8] -> [Word8] -> Reader Config [Word8]
+calculate bytes key = do
     cfg <- ask
+    let hashFunction = innerAlgorithm cfg
+    let hashLen = innerAlgorithmLength cfg
 
     let paddedKey = padEndZero key 64
     let innerKey = map (xor 0x36) paddedKey
@@ -33,4 +32,4 @@ calculate bytes key hashFunction hashSize = do
     let innerDigest = runReader (hashFunction $ innerKey ++ bytes) cfg
     let outerDigest = runReader (hashFunction $ outerKey ++ innerDigest) cfg
 
-    trace' "[Hmac] output: %s" (word8ArrayToHexArray outerDigest hashSize) outerDigest
+    trace' "[Hmac] output: %s" (word8ArrayToHexArray outerDigest hashLen) outerDigest

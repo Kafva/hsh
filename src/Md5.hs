@@ -8,7 +8,7 @@ import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
 import Data.Binary (Word8, Word32)
 import Log (trace', trace'')
 import Data.Foldable (foldlM, foldl')
-import Types (Config, Block, Md5Digest)
+import Types (Config, Block, Md5Digest, HashSignature)
 import Util (word8ArrayToHexArray,
              word8toWord32ArrayLE,
              word32ArrayToWord8ArrayLE,
@@ -145,7 +145,7 @@ processBlock digest block = do
  - but both are valid.
  - https://crypto.stackexchange.com/a/6320/95946
  -}
-hash :: [Word8] -> Reader Config [Word8]
+hash :: HashSignature
 hash bytes = do
     -- * Pad the input to be a multiple of the block size (16 bytes)
     let paddedBytes = padMd5Input bytes
