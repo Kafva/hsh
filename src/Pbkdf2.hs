@@ -1,5 +1,6 @@
 module Pbkdf2 (deriveKey) where
 
+import Control.Parallel (par)
 import Data.Binary (Word8)
 import Control.Monad.Reader
 import Data.Bits (xor)
@@ -39,9 +40,9 @@ calculateU password accumlator i iterations
 calculateT :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
 calculateT password salt blockIndex = do
     cfg <- ask
+    let hLen = innerAlgorithmLength cfg
     let s1 = salt ++ word32ToWord8ArrayBE (fromIntegral blockIndex)
     u1 <- prf password s1
-    let hLen = innerAlgorithmLength cfg
     let blocksU = runReader (calculateU password [u1] 2 (iterations cfg)) cfg
     mapAccumXor (replicate hLen 0) blocksU hLen
 
@@ -83,10 +84,22 @@ deriveKey password salt = do
                                 -- One extra block if not evenly divisible
                                 div dkLen hLen + 1
 
-    -- Calculate each block of the derived key.
-    -- mapM acts like fmap for functions that return monads (Reader), all
-    -- arguments except `i` are fixed.
-    ts <- mapM (calculateT password salt) [1..derivedBlockCount]
+    -- Each block of the derived key can be calculated independently.
+    
+    -- Build a calculation for each block, the `par` operator schedules
+    -- the first argument to be executed in parallel while returning the second
+    -- argument.
+    results <- forM [1..derivedBlockCount] $ \i -> do
+        let result = calculateT password salt i
+        result `par` return result
+    
+    -- Wait for parallel execution to finish, `seq` makes sure that both of its 
+    -- arguments are evaluated before returning.
+    forM_ results $ \r -> r `seq` return ()
+    
+    -- Unwrap from [Reader Config [Word8]] -> [[Word8]]
+    ts <- sequence results
+
     -- Concatenate all blocks together for the result
     dk <- trace' "[Pbkdf2] derivedBlockCount: %d\n" derivedBlockCount $ concat ts
 
