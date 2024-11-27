@@ -1,6 +1,6 @@
 module Pbkdf2 (deriveKey) where
 
-import Control.Parallel (par)
+import Control.Parallel (par, pseq)
 import Data.Binary (Word8)
 import Control.Monad.Reader
 import Data.Bits (xor)
@@ -85,6 +85,7 @@ deriveKey password salt = do
                                 div dkLen hLen + 1
 
     -- Each block of the derived key can be calculated independently.
+    -- ts <- mapM (calculateT password salt) [1..derivedBlockCount]
     
     -- Build a calculation for each block, the `par` operator schedules
     -- the first argument to be executed in parallel while returning the second
@@ -95,7 +96,7 @@ deriveKey password salt = do
     
     -- Wait for parallel execution to finish, `seq` makes sure that both of its 
     -- arguments are evaluated before returning.
-    forM_ results $ \r -> r `seq` return ()
+    mapM_ (\r -> r `pseq` return ()) results
     
     -- Unwrap from [Reader Config [Word8]] -> [[Word8]]
     ts <- sequence results

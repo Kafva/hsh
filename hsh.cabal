@@ -32,11 +32,13 @@ common warnings
                  -Wmissing-home-modules
                  -Wpartial-fields
                  -Wredundant-constraints
-                 -threaded
 
 executable hsh
     import:           warnings
-    main-is:          Main.hs
+    -- TODO
+    main-is:          Example.hs
+    ghc-options:      -threaded
+    ghc-options:      +RTS -qa -RTS
     other-modules:    Md5
                       Sha1
                       Sha256
