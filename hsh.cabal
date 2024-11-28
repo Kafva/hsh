@@ -37,8 +37,7 @@ executable hsh
     import:           warnings
     -- TODO
     main-is:          Example.hs
-    ghc-options:      -threaded
-    ghc-options:      +RTS -qa -RTS
+    ghc-options:      -threaded +RTS -N3 -RTS
     other-modules:    Md5
                       Sha1
                       Sha256
