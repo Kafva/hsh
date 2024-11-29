@@ -92,11 +92,11 @@ deriveKey password salt = do
     -- argument.
     results <- forM [1..derivedBlockCount] $ \i -> do
         let result = calculateT password salt i
-        result `par` return result
+        par result return result
     
     -- Wait for parallel execution to finish, `seq` makes sure that both of its 
     -- arguments are evaluated before returning.
-    mapM_ (\r -> r `pseq` return ()) results
+    mapM_ (\r -> pseq r return ()) results
     
     -- Unwrap from [Reader Config [Word8]] -> [[Word8]]
     ts <- sequence results
