@@ -1,6 +1,5 @@
 module Pbkdf2 (deriveKey) where
 
-import Control.Parallel (par, pseq)
 import Data.Binary (Word8)
 import Control.Monad.Reader
 import Data.Bits (xor)
@@ -84,23 +83,12 @@ deriveKey password salt = do
                                 -- One extra block if not evenly divisible
                                 div dkLen hLen + 1
 
-    -- Each block of the derived key can be calculated independently.
-    -- ts <- mapM (calculateT password salt) [1..derivedBlockCount]
+    -- Each block of the derived key can be calculated independently, 
+    -- TODO: Parallel execution with `par` should be faster...
+    -- mapM acts like fmap for functions that return monads (Reader), all
+    -- arguments except `i` are fixed.
+    ts <- mapM (calculateT password salt) [1..derivedBlockCount]
     
-    -- Build a calculation for each block, the `par` operator schedules
-    -- the first argument to be executed in parallel while returning the second
-    -- argument.
-    results <- forM [1..derivedBlockCount] $ \i -> do
-        let result = calculateT password salt i
-        par result return result
-    
-    -- Wait for parallel execution to finish, `seq` makes sure that both of its 
-    -- arguments are evaluated before returning.
-    mapM_ (\r -> pseq r return ()) results
-    
-    -- Unwrap from [Reader Config [Word8]] -> [[Word8]]
-    ts <- sequence results
-
     -- Concatenate all blocks together for the result
     dk <- trace' "[Pbkdf2] derivedBlockCount: %d\n" derivedBlockCount $ concat ts
 

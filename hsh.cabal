@@ -35,9 +35,9 @@ common warnings
 
 executable hsh
     import:           warnings
-    -- TODO
-    main-is:          Example.hs
-    ghc-options:      -threaded +RTS -N3 -RTS
+    main-is:          Main.hs
+    -- Enable thread support
+    -- ghc-options:      -threaded +RTS -qa -RTS
     other-modules:    Md5
                       Sha1
                       Sha256
