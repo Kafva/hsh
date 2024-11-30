@@ -3,7 +3,7 @@ module Sha1 (hash) where
 
 import Control.Monad.Reader
 import Data.Foldable (foldl', foldlM)
-import Data.Binary (Word8, Word32)
+import Data.Binary (Word32)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
 import Log (trace')
 import Types (Config, Sha1Digest, Sha1ArrayW, Block, HashSignature)

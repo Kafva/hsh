@@ -33,7 +33,7 @@ data Config = Config {
     keySource :: String,
     iterations :: Int,
     derivedKeyLength :: Int,
-    jobs :: Int
+    enableThreads :: Bool
 
 } deriving Show
 

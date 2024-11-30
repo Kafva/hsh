@@ -5,7 +5,7 @@ module Md5 (hash) where
 import Control.Monad.Reader
 import Template (md5Table)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
-import Data.Binary (Word8, Word32)
+import Data.Binary (Word32)
 import Log (trace', trace'')
 import Data.Foldable (foldlM, foldl')
 import Types (Config, Block, Md5Digest, HashSignature)

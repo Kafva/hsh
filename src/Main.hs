@@ -34,7 +34,7 @@ defaultOptions = Config {
     keySource = "",
     iterations = 512,
     derivedKeyLength = 64,
-    jobs = 1
+    enableThreads = False
 }
 
 usage :: IO ()
@@ -114,10 +114,10 @@ options = [
         ) "count")
         ("pbkdf2: Length of derived key to generate [default: " ++ intToString (derivedKeyLength defaultOptions) ++ " bytes]"),
 
-        Option ['j'] ["jobs"] (ReqArg (\arg opt ->
-            return opt { jobs = stringToInt arg }
-        ) "jobs")
-        ("pbkdf2: Number of blocks to calculate in parallel [default: " ++ intToString (jobs defaultOptions) ++ "]")
+        Option ['T'] ["enable-threads"] (NoArg (\opt -> do
+            return opt { enableThreads = True }
+        ))
+        ("pbkdf2: Use threaded backend [default: " ++ show (enableThreads defaultOptions) ++ "]")
 
     ]
 

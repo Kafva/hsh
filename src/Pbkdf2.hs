@@ -5,7 +5,7 @@ import Control.Monad.Reader
 import Data.Bits (xor)
 import Types (Config(..), ConfigMonad())
 import Log (debug')
-import Util (word32ToWord8ArrayBE, word8ArrayToHexArray)
+import Util (word32ToWord8ArrayBE)
 import Hmac
 import Control.Concurrent.MVar
 import Control.Concurrent
@@ -52,11 +52,14 @@ spawnWorker :: [Word8] -> [Word8] -> Int -> ConfigMonad (MVar [Word8])
 spawnWorker password salt blockIndex = do
     resultVar <- liftIO newEmptyMVar
     cfg <- ask
+    -- Create a thread in the Haskell runtime.
+    -- Note: forkOS does not create a different 'type' of thread, the difference
+    -- from forkIO lies in ffi compatibility
     _ <- liftIO $ forkIO $ do
-        putStrLn $ "Starting work... [" ++ show blockIndex ++ "]"
-        threadDelay 1000000
-        let result = runReader (calculateT password salt blockIndex) cfg
-        putMVar resultVar result
+        -- putStrLn $ "Processing block #" ++ show blockIndex
+        -- threadDelay 1000000
+        let r = runReader (calculateT password salt blockIndex) cfg
+        putMVar resultVar r
     return resultVar
 
 {-
@@ -96,31 +99,23 @@ deriveKey password salt = do
                                 dkLen `div` hLen else
                                 -- One extra block if not evenly divisible
                                 dkLen `div` hLen + 1
-
-    let blocksPerWorker = derivedBlockCount `div` jobs cfg
-
-    -- The default step is 2
-    let blockIndexes = takeWhile (<= derivedBlockCount) [1, blocksPerWorker + 1 ..]
-
-    debug' "[Pbkdf2] blocksPerWorker: %d\n" blocksPerWorker
     debug' "[Pbkdf2] derivedBlockCount: %d\n" derivedBlockCount
 
-    ts <- forM blockIndexes $ \blockIndex -> do
-        let lastBlockIndex = if blockIndex + blocksPerWorker - 1 <= derivedBlockCount then
-                                blockIndex + blocksPerWorker - 1
-                            else derivedBlockCount
-
-        -- mapM acts like fmap for functions that return monads (Reader), all
-        -- arguments except `i` are fixed.
+    ts <- if enableThreads cfg then do
+        -- The threaded approach is not faster, probably too much overhead
+        -- creating threads...
         -- Each call launches a new thread and returns a MVar (Mutable variable)
         -- that will be populated with the result for the given block index.
-        mVars <- mapM (\i -> do spawnWorker password salt i) [blockIndex..lastBlockIndex]
+        mVars <- mapM (\i -> do spawnWorker password salt i) [1..derivedBlockCount]
 
-        -- Wait for all blocks to be calculated, takeMVar will hang until the 
+        -- Wait for all blocks to be calculated, takeMVar will hang until the
         -- mvar returns a value.
         forM mVars $ \mvar -> liftIO $ takeMVar mvar
-    
-    -- Concatenate all blocks together for the result
-    let dk = concat $ concat ts
+    else do
+        -- mapM acts like fmap for functions that return monads (Reader), all
+        -- arguments except `i` are fixed.
+        mapM (\i -> liftIO $ return (runReader (calculateT password salt i) cfg)) [1..derivedBlockCount]
 
+    -- Concatenate all blocks together for the result
+    let dk = concat ts
     return dk
