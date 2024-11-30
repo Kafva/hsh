@@ -48,14 +48,13 @@ calculateT password salt blockIndex = do
     mapAccumXor (replicate hLen 0) blocksU hLen
 
 
--- Function to run the ReaderT computation and store the result in an MVar
-runComputeWithConfig :: [Word8] -> [Word8] -> Int -> ConfigMonad (MVar [Word8])
-spawnThread password salt blockIndex = do
+spawnWorker :: [Word8] -> [Word8] -> Int -> ConfigMonad (MVar [Word8])
+spawnWorker password salt blockIndex = do
     resultVar <- liftIO newEmptyMVar
     cfg <- ask
     _ <- liftIO $ forkIO $ do
         putStrLn $ "Starting work... [" ++ show blockIndex ++ "]"
-        threadDelay 1000000  -- Simulate work with a 3-second delay
+        threadDelay 1000000
         let result = runReader (calculateT password salt blockIndex) cfg
         putMVar resultVar result
     return resultVar
@@ -92,26 +91,36 @@ deriveKey password salt = do
 
     when (dkLen > (2 ^ (32 :: Int) - 1) * hLen) $ error "Derived key length to large"
 
-    let lastBlockByteCount = mod dkLen hLen
+    let lastBlockByteCount = dkLen `mod` hLen
     let derivedBlockCount = if lastBlockByteCount == 0 then
-                                div dkLen hLen else
+                                dkLen `div` hLen else
                                 -- One extra block if not evenly divisible
-                                div dkLen hLen + 1
+                                dkLen `div` hLen + 1
 
-    -- mapM acts like fmap for functions that return monads (Reader), all
-    -- arguments except `i` are fixed.
-    -- Each call launches a new thread and returns a MVar (Mutable variable)
-    -- that will be populated with the result for the given block index.
-    mVars <- mapM (\i -> do spawnThread password salt i) [1..derivedBlockCount]
+    let blocksPerWorker = derivedBlockCount `div` jobs cfg
 
-    -- Wait for all blocks to be calculated, takeMVar will hang until the 
-    -- mvar returns a value.
-    ts <- forM mVars $ \x -> liftIO $ takeMVar mvar
+    -- The default step is 2
+    let blockIndexes = takeWhile (<= derivedBlockCount) [1, blocksPerWorker + 1 ..]
 
-    -- Concatenate all blocks together for the result
-    let dk = concat ts
-
+    debug' "[Pbkdf2] blocksPerWorker: %d\n" blocksPerWorker
     debug' "[Pbkdf2] derivedBlockCount: %d\n" derivedBlockCount
-    debug' "[Pbkdf2] output: %s" (word8ArrayToHexArray dk dkLen)
+
+    ts <- forM blockIndexes $ \blockIndex -> do
+        let lastBlockIndex = if blockIndex + blocksPerWorker - 1 <= derivedBlockCount then
+                                blockIndex + blocksPerWorker - 1
+                            else derivedBlockCount
+
+        -- mapM acts like fmap for functions that return monads (Reader), all
+        -- arguments except `i` are fixed.
+        -- Each call launches a new thread and returns a MVar (Mutable variable)
+        -- that will be populated with the result for the given block index.
+        mVars <- mapM (\i -> do spawnWorker password salt i) [blockIndex..lastBlockIndex]
+
+        -- Wait for all blocks to be calculated, takeMVar will hang until the 
+        -- mvar returns a value.
+        forM mVars $ \mvar -> liftIO $ takeMVar mvar
+    
+    -- Concatenate all blocks together for the result
+    let dk = concat $ concat ts
 
     return dk

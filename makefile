@@ -14,13 +14,15 @@ KEYFILE ?= .testenv/key.dat
 
 # Maximum key length: (2^32 - 1) * hLen 
 # For sha1: hLen=20
-PBKDF2_DERIVED_KEY_LENGTH ?= 128
+PBKDF2_DERIVED_KEY_LENGTH ?= 64
 PBKDF2_ITERATIONS ?= 512
+PBKDF2_JOBS ?= 1
 INNER_HASH_ALGORITHM ?= sha256
 
 HSH_ARGS += -k $(KEYFILE)
 HSH_ARGS += -i $(PBKDF2_ITERATIONS)
 HSH_ARGS += -l $(PBKDF2_DERIVED_KEY_LENGTH)
+HSH_ARGS += -j $(PBKDF2_JOBS)
 HSH_ARGS += -H $(INNER_HASH_ALGORITHM)
 
 ################################################################################
