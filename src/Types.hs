@@ -32,7 +32,8 @@ data Config = Config {
     innerAlgorithmLength :: Int,
     keySource :: String,
     iterations :: Int,
-    derivedKeyLength :: Int
+    derivedKeyLength :: Int,
+    jobs :: Int
 
 } deriving Show
 

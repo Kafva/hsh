@@ -33,7 +33,8 @@ defaultOptions = Config {
     innerAlgorithmLength = 20,
     keySource = "",
     iterations = 512,
-    derivedKeyLength = 64
+    derivedKeyLength = 64,
+    jobs = 1
 }
 
 usage :: IO ()
@@ -111,7 +112,13 @@ options = [
         Option ['l'] ["length"] (ReqArg (\arg opt ->
             return opt { derivedKeyLength = stringToInt arg }
         ) "count")
-        ("pbkdf2: Length of derived key to generate [default: " ++ intToString (derivedKeyLength defaultOptions) ++ " bytes]")
+        ("pbkdf2: Length of derived key to generate [default: " ++ intToString (derivedKeyLength defaultOptions) ++ " bytes]"),
+
+        Option ['j'] ["jobs"] (ReqArg (\arg opt ->
+            return opt { jobs = stringToInt arg }
+        ) "jobs")
+        ("pbkdf2: Number of blocks to calculate in parallel [default: " ++ intToString (jobs defaultOptions) ++ "]")
+
     ]
 
 main :: IO ()
@@ -157,7 +164,7 @@ main = do
                     let mac = runReader (Hmac.calculate bytes key) opts
                     putStrLn $ word8ArrayToHexString mac 32
                 "pbkdf2" -> do
-                    let derivedKey = runReader (Pbkdf2.deriveKey key bytes) opts
+                    derivedKey <- runReaderT (Pbkdf2.deriveKey key bytes) opts
                     putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
                 _ -> putStrLn $ "Invalid algorithm: " ++ algorithm opts
 

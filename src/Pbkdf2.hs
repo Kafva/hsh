@@ -3,10 +3,12 @@ module Pbkdf2 (deriveKey) where
 import Data.Binary (Word8)
 import Control.Monad.Reader
 import Data.Bits (xor)
-import Types (Config(..))
-import Log (trace')
+import Types (Config(..), ConfigMonad())
+import Log (debug', debug'')
 import Util (word32ToWord8ArrayBE, word8ArrayToHexArray)
 import Hmac
+import Control.Concurrent.MVar
+import Control.Concurrent
 
 -- From the RFC: "In the case of PBKDF2, the "key" is thus the password and the
 -- "text" is the salt". I.e.
@@ -45,6 +47,35 @@ calculateT password salt blockIndex = do
     let blocksU = runReader (calculateU password [u1] 2 (iterations cfg)) cfg
     mapAccumXor (replicate hLen 0) blocksU hLen
 
+
+
+
+-- Function to run the ReaderT computation and store the result in an MVar
+runComputeWithConfig :: [Word8] -> [Word8] -> Int -> ConfigMonad (MVar [Word8])
+runComputeWithConfig password salt blockIndex = do
+    resultVar <- liftIO newEmptyMVar
+    cfg <- ask
+    _ <- liftIO $ forkIO $ do
+        putStrLn $ "Starting work... [" ++ show blockIndex ++ "]"
+        threadDelay 1000000  -- Simulate work with a 3-second delay
+        let result = runReader (calculateT password salt blockIndex) cfg
+        putMVar resultVar result
+    return resultVar
+
+
+-- runParallel :: [Word8] -> [Word8] -> ConfigMonad [[Word8]]
+-- runParallel password salt = do
+--     cfg <- ask
+--     xs <- mapM (\i -> runComputeWithConfig password salt i) [0..(iterations cfg)]
+--     forM xs $ \x -> do 
+--         r <- takeMVar x
+--         return r
+    -- mapM xs $ \x -> do
+    --     result <- takeMVar x
+    --     print result
+
+
+
 {-
  - PBKDF2 (P, S, c, dkLen)
  -
@@ -69,7 +100,7 @@ calculateT password salt blockIndex = do
  -
  - https://www.ietf.org/rfc/rfc2898.txt
  -}
-deriveKey :: [Word8] -> [Word8] -> Reader Config [Word8]
+deriveKey :: [Word8] -> [Word8] -> ConfigMonad [Word8]
 deriveKey password salt = do
     cfg <- ask
     let dkLen = derivedKeyLength cfg
@@ -83,13 +114,24 @@ deriveKey password salt = do
                                 -- One extra block if not evenly divisible
                                 div dkLen hLen + 1
 
-    -- Each block of the derived key can be calculated independently, 
-    -- TODO: Parallel execution with `par` should be faster...
+    xs <- mapM (\i -> do runComputeWithConfig password salt i) [1..derivedBlockCount]
+    ts <- forM xs $ \x -> do
+        liftIO $ takeMVar x
+    let dk = concat ts
+
+
+    --let ts = [0x0]
+    --let xs = runReaderT (runParallel password salt) cfg
+    --let ts = liftIO xs
+
+
+    -- Regular approach
     -- mapM acts like fmap for functions that return monads (Reader), all
     -- arguments except `i` are fixed.
-    ts <- mapM (calculateT password salt) [1..derivedBlockCount]
-    
-    -- Concatenate all blocks together for the result
-    dk <- trace' "[Pbkdf2] derivedBlockCount: %d\n" derivedBlockCount $ concat ts
+    -- ts <- mapM (calculateT password salt) [1..derivedBlockCount]
 
-    trace' "[Pbkdf2] output: %s" (word8ArrayToHexArray dk dkLen) (take dkLen dk)
+    -- Concatenate all blocks together for the result
+    -- runReaderT (debug' "[Pbkdf2] derivedBlockCount: %d\n" derivedBlockCount) cfg
+    -- runReaderT (debug'' "[Pbkdf2] output: %s" (word8ArrayToHexArray dk dkLen) (take dkLen dk)) cfg
+
+    return dk
