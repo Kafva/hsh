@@ -14,7 +14,7 @@ KEYFILE ?= .testenv/key.dat
 
 # Maximum key length: (2^32 - 1) * hLen 
 # For sha1: hLen=20
-PBKDF2_DERIVED_KEY_LENGTH ?= 64
+PBKDF2_DERIVED_KEY_LENGTH ?= 128
 PBKDF2_ITERATIONS ?= 512
 INNER_HASH_ALGORITHM ?= sha256
 
