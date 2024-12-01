@@ -1,19 +1,20 @@
 package main
 
 import (
-    "bufio"
-    "crypto/hmac"
-    "crypto/sha1"
-    "crypto/sha256"
-    "encoding/hex"
-    "flag"
-    "fmt"
-    "hash"
-    "os"
-    "path"
-    "strconv"
+	"bufio"
+	"crypto/hmac"
+	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/hex"
+	"flag"
+	"fmt"
+	"hash"
+	"os"
+	"path"
+	"strconv"
 
-    "golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/scrypt"
 )
 
 var DEBUG = false
@@ -32,6 +33,8 @@ func main() {
         runHmac(args)
     case "pbkdf2":
         runPbkdf2(args)
+    case "scrypt":
+        runScrypt(args)
     default:
         println("Bad program name")
         os.Exit(1)
@@ -88,6 +91,38 @@ func runPbkdf2(args []string) {
     length, _ := strconv.Atoi(args[3])
 
     dk := pbkdf2.Key(password, salt, iterations, length, INNER_ALG)
+    dumpWordArray("output", dk)
+    writeResult(dk)
+}
+
+func runScrypt(args []string) {
+    if len(args) != 6 {
+        fmt.Printf("Usage: %s <password> <salt> <memory-cost> <blocksize> <parallelisation> <length>\n", path.Base(os.Args[0]))
+        os.Exit(1)
+    }
+
+    password, ok := loadFromFile(args[0])
+    if !ok {
+        return
+    }
+    dumpWordArray("password", password)
+
+    salt, ok := loadFromFile(args[1])
+    if !ok {
+        return
+    }
+    dumpWordArray("salt", salt)
+
+    memoryCost, _ := strconv.Atoi(args[2])
+    blockSize, _ := strconv.Atoi(args[3])
+    parallelisationParameter, _ := strconv.Atoi(args[4])
+    keyLength, _ := strconv.Atoi(args[5])
+
+    dk, err := scrypt.Key(password, salt, memoryCost, blockSize, parallelisationParameter, keyLength)
+    if err != nil {
+        fmt.Printf("Error in scrypt: '%s'\n", err.Error())
+        return
+    }
     dumpWordArray("output", dk)
     writeResult(dk)
 }

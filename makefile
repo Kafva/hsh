@@ -1,4 +1,4 @@
-.PHONY: test build clean
+.PHONY: test profile build clean
 
 # Inputfile:
 #  * Acts as the input stream for hash algorithms
@@ -18,11 +18,19 @@ PBKDF2_DERIVED_KEY_LENGTH ?= 64
 PBKDF2_ITERATIONS ?= 512
 INNER_HASH_ALGORITHM ?= sha256
 
+# Memory cost parameter for scrypt (N)
+SCRYPT_MEMORY_COST ?= 32768
+# Parallelisation parameter for scrypt (p)
+SCRYPT_PARALLELISATION ?= 1
+# Block size for scrypt (r)
+SCRYPT_BLOCK_SIZE ?= 8 
+SCRYPT_DERIVED_KEY_LENGTH = 64
+
 HSH_ARGS += -k $(KEYFILE)
 HSH_ARGS += -i $(PBKDF2_ITERATIONS)
 HSH_ARGS += -l $(PBKDF2_DERIVED_KEY_LENGTH)
 HSH_ARGS += -H $(INNER_HASH_ALGORITHM)
-HSH_ARGS += -T
+HSH_ARGS +=
 
 ################################################################################
 
@@ -34,6 +42,7 @@ build: tests/rfc/RFC-6234
 	$(MAKE) -C tests/rfc/RFC-6234
 	go build -C tests -o bin/hmac  main.go
 	go build -C tests -o bin/pbkdf2 main.go
+	go build -C tests -o bin/scrypt main.go
 
 tests/rfc/RFC-6234:
 	git clone --depth 1 https://github.com/Madricas/RFC-6234.git $@
@@ -110,6 +119,14 @@ test-pbkdf2: build $(INPUTFILE) $(KEYFILE)
 		tests/bin/pbkdf2 -H $(INNER_HASH_ALGORITHM) -d $(KEYFILE) $(INPUTFILE) \
 			$(PBKDF2_ITERATIONS) \
 			$(PBKDF2_DERIVED_KEY_LENGTH))
+
+test-scrypt: build $(INPUTFILE) $(KEYFILE)
+	$(call verify_alg,scrypt,,golang/x/crypto/scrypt,\
+		tests/bin/scrypt -d $(KEYFILE) $(INPUTFILE) \
+			$(SCRYPT_MEMORY_COST) \
+			$(SCRYPT_BLOCK_SIZE) \
+			$(SCRYPT_PARALLELISATION) \
+			$(SCRYPT_DERIVED_KEY_LENGTH))
 
 test: build $(INPUTFILE) $(KEYFILE)
 	mkdir -p .testenv

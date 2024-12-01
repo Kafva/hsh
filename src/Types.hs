@@ -33,6 +33,9 @@ data Config = Config {
     keySource :: String,
     iterations :: Int,
     derivedKeyLength :: Int,
+    memoryCost :: Int,
+    blockSize :: Int,
+    parallelisationParam :: Int,
     enableThreads :: Bool
 
 } deriving Show

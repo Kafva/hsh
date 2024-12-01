@@ -5,8 +5,9 @@ module Main (main) where
 import Md5
 import Sha1
 import Sha256
-import Pbkdf2
 import Hmac
+import Pbkdf2
+import Scrypt
 import Template
 import Types (Config(..), HashSignature)
 import Util (word8ArrayToHexString, word8ArrayToHexArray, stringToInt, intToString)
@@ -34,6 +35,9 @@ defaultOptions = Config {
     keySource = "",
     iterations = 512,
     derivedKeyLength = 64,
+    memoryCost = 32768,
+    blockSize = 8,
+    parallelisationParam = 1,
     enableThreads = False
 }
 
@@ -46,7 +50,7 @@ usage = do
                  "STDIN:\n" ++
                  "  Acts as the input stream for hash algorithms\n" ++
                  "  Acts as the input message for HMAC\n" ++
-                 "  Acts as the salt for PBKDF2\n\n" ++
+                 "  Acts as the salt for PBKDF2 and SCRYPT\n\n" ++
                  "OPTIONS:"
     hPutStrLn stderr $ usageInfo header options
 
@@ -112,12 +116,27 @@ options = [
         Option ['l'] ["length"] (ReqArg (\arg opt ->
             return opt { derivedKeyLength = stringToInt arg }
         ) "count")
-        ("pbkdf2: Length of derived key to generate [default: " ++ intToString (derivedKeyLength defaultOptions) ++ " bytes]"),
+        ("pbkdf2,scrypt: Length of derived key to generate [default: " ++ intToString (derivedKeyLength defaultOptions) ++ " bytes]"),
+
+        Option ['N'] ["memory-cost"] (ReqArg (\arg opt ->
+            return opt { memoryCost = stringToInt arg }
+        ) "N")
+        ("scrypt: CPU/Memory cost parameter [default: " ++ intToString (memoryCost defaultOptions) ++ "]"),
+
+        Option ['p'] ["parallelisation"] (ReqArg (\arg opt ->
+            return opt { parallelisationParam = stringToInt arg }
+        ) "p")
+        ("scrypt: Parallelisation parameter [default: " ++ intToString (parallelisationParam defaultOptions) ++ "]"),
+
+        Option ['r'] ["block-size"] (ReqArg (\arg opt ->
+            return opt { blockSize = stringToInt arg }
+        ) "r")
+        ("scrypt: Block size parameter [default: " ++ intToString (blockSize defaultOptions) ++ " bytes]"),
 
         Option ['T'] ["enable-threads"] (NoArg (\opt -> do
             return opt { enableThreads = True }
         ))
-        ("pbkdf2: Use threaded backend [default: " ++ show (enableThreads defaultOptions) ++ "]")
+        ("pbkdf2,scrypt: Use threaded backend [default: " ++ show (enableThreads defaultOptions) ++ "]")
 
     ]
 
@@ -150,7 +169,7 @@ main = do
             let digest = runReader (hashFunction bytes) opts
             putStrLn $ word8ArrayToHexString digest outLength
 
-        s | s == "hmac" || s == "pbkdf2" -> do
+        s | s == "hmac" || s == "pbkdf2" || s == "scrypt" -> do
             keyByteString <- if keySource opts == ""
                               then die "No key data provided"
                               else BS.readFile (keySource opts)
@@ -166,10 +185,10 @@ main = do
                 "pbkdf2" -> do
                     derivedKey <- runReaderT (Pbkdf2.deriveKey key bytes) opts
                     putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
+                "scrypt" -> do
+                    let derivedKey = runReader (Scrypt.deriveKey key bytes) opts
+                    putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
                 _ -> putStrLn $ "Invalid algorithm: " ++ algorithm opts
-
-        "scrypt" -> do
-            putStrLn $ word8ArrayToHexString [0x0] 20
 
         alg ->
             if alg == ""
