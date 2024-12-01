@@ -2,7 +2,7 @@
 
 module Types (
     Config(..), -- constructor
-    ConfigMonad,
+    ConfigIO,
     Md5Digest,
     Sha1Digest,
     Sha256Digest,
@@ -16,7 +16,7 @@ import Control.Monad.Reader
 import Data.Binary (Word32, Word8)
 
 -- A Monad stack that allows us to run both IO and read from the Config
-type ConfigMonad a = ReaderT Config IO a
+type ConfigIO a = ReaderT Config IO a
 -- Function signature for hash functions
 type HashSignature = [Word8] -> Reader Config [Word8]
 

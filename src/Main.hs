@@ -183,7 +183,7 @@ main = do
                     let mac = runReader (Hmac.calculate bytes key) opts
                     putStrLn $ word8ArrayToHexString mac 32
                 "pbkdf2" -> do
-                    derivedKey <- runReaderT (Pbkdf2.deriveKey key bytes (derivedKeyLength opts)) opts
+                    derivedKey <- runReaderT (Pbkdf2.deriveKeyIO key bytes (derivedKeyLength opts)) opts
                     putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
                 "scrypt" -> do
                     unless (iterations opts == 1) $ die "ERROR: Pbkdf2 iterations should be set to 1 for Scrypt"

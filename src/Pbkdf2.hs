@@ -1,9 +1,9 @@
-module Pbkdf2 (deriveKey) where
+module Pbkdf2 (deriveKey, deriveKeyIO) where
 
 import Data.Binary (Word8)
 import Control.Monad.Reader
 import Data.Bits (xor)
-import Types (Config(..), ConfigMonad())
+import Types (Config(..), ConfigIO())
 import Log (debug')
 import Util (word32ToWord8ArrayBE)
 import Hmac
@@ -47,7 +47,7 @@ calculateT password salt blockIndex = do
     let blocksU = runReader (calculateU password [u1] 2 (iterations cfg)) cfg
     mapAccumXor (replicate hLen 0) blocksU hLen
 
-spawnWorker :: [Word8] -> [Word8] -> Int -> ConfigMonad (MVar [Word8])
+spawnWorker :: [Word8] -> [Word8] -> Int -> ConfigIO (MVar [Word8])
 spawnWorker password salt blockIndex = do
     resultVar <- liftIO newEmptyMVar
     cfg <- ask
@@ -60,6 +60,14 @@ spawnWorker password salt blockIndex = do
         let r = runReader (calculateT password salt blockIndex) cfg
         putMVar resultVar r
     return resultVar
+
+derivedBlockCount :: Int -> Int -> Int
+derivedBlockCount dkLen hLen
+    | dkLen > (2 ^ (32 :: Int) - 1) * hLen = error "Derived key length to large"
+    | otherwise = if (dkLen `mod` hLen) == 0 then
+                            dkLen `div` hLen else
+                            -- One extra block if not evenly divisible
+                            dkLen `div` hLen + 1
 
 {-
  - PBKDF2 (P, S, c, dkLen)
@@ -85,34 +93,40 @@ spawnWorker password salt blockIndex = do
  -
  - https://www.ietf.org/rfc/rfc2898.txt
  -}
-deriveKey :: [Word8] -> [Word8] -> Int -> ConfigMonad [Word8]
+deriveKey :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
 deriveKey password salt dkLen = do
     cfg <- ask
     let hLen = innerAlgorithmLength cfg
+    let blockCount = derivedBlockCount dkLen hLen
 
-    when (dkLen > (2 ^ (32 :: Int) - 1) * hLen) $ error "Derived key length to large"
+    -- Calculate each block of the derived key.
+    -- mapM acts like fmap for functions that return monads (Reader), all
+    -- arguments except `i` are fixed.
+    ts <- mapM (calculateT password salt) [1..blockCount]
 
-    let lastBlockByteCount = dkLen `mod` hLen
-    let derivedBlockCount = if lastBlockByteCount == 0 then
-                                dkLen `div` hLen else
-                                -- One extra block if not evenly divisible
-                                dkLen `div` hLen + 1
-    debug' "[Pbkdf2] derivedBlockCount: %d\n" derivedBlockCount
+    -- Concatenate all blocks together for the result
+    let dk = concat ts
+    return dk
+
+deriveKeyIO :: [Word8] -> [Word8] -> Int -> ConfigIO [Word8]
+deriveKeyIO password salt dkLen = do
+    cfg <- ask
+    let hLen = innerAlgorithmLength cfg
+    let blockCount = derivedBlockCount dkLen hLen
+    debug' "[Pbkdf2] blockCount: %d\n" blockCount
 
     ts <- if enableThreads cfg then do
         -- The threaded approach is not faster, probably too much overhead
         -- creating and waiting for threads...
         -- Each call launches a new thread and returns a MVar (Mutable variable)
         -- that will be populated with the result for the given block index.
-        mVars <- mapM (\i -> do spawnWorker password salt i) [1..derivedBlockCount]
+        mVars <- mapM (\i -> do spawnWorker password salt i) [1..blockCount]
 
         -- Wait for all blocks to be calculated, takeMVar will hang until the
         -- mvar returns a value.
         forM mVars $ \mvar -> liftIO $ takeMVar mvar
     else do
-        -- mapM acts like fmap for functions that return monads (Reader), all
-        -- arguments except `i` are fixed.
-        mapM (\i -> liftIO $ return (runReader (calculateT password salt i) cfg)) [1..derivedBlockCount]
+        mapM (\i -> liftIO $ return (runReader (calculateT password salt i) cfg)) [1..blockCount]
 
     -- Concatenate all blocks together for the result
     let dk = concat ts

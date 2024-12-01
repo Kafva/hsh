@@ -3,7 +3,7 @@
 module Log (debug', debug'', trace', trace'') where
 
 import Control.Monad.Reader
-import Types(Config(..), ConfigMonad)
+import Types(Config(..), ConfigIO)
 import Text.Printf (printf, PrintfArg)
 import Debug.Trace
 
@@ -32,14 +32,14 @@ debugPrintf' fmt args = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt) args
 debugPrintf'' :: String -> PrintfArg a => a -> PrintfArg b => b -> String
 debugPrintf'' fmt arg1 arg2 = printf ("\x1b[94mDEBUG\x1b[0m: " ++ fmt) arg1 arg2
 
-debug' :: String -> PrintfArg a => a -> ConfigMonad()
+debug' :: String -> PrintfArg a => a -> ConfigIO()
 debug' fmt arg = do
     cfg <- ask
     if debug cfg
        then liftIO $ putStr $ debugPrintf' fmt arg
        else liftIO $ putStr ""
 
-debug'' :: String -> PrintfArg a => a -> PrintfArg b => b -> ConfigMonad()
+debug'' :: String -> PrintfArg a => a -> PrintfArg b => b -> ConfigIO()
 debug'' fmt arg1 arg2 = do
     cfg <- ask
     if debug cfg

@@ -70,18 +70,19 @@ define verify_ok
 endef
 
 # $1: Algorithm
-# $2: Builtin reference command (optional)
-# $3: Reference command label
-# $4: Reference command
+# $2: Additional hsh arguments
+# $3: Builtin reference command (optional)
+# $4: Reference command label
+# $5: Reference command
 define verify_alg
-	@if [ -n "${2}" ]; then \
-		$(call msg,${2}); \
-		${2} < $(INPUTFILE); \
+	@if [ -n "${3}" ]; then \
+		$(call msg,${3}); \
+		${3} < $(INPUTFILE); \
 	fi
-	$(call msg,${3})
-	${4}
+	$(call msg,${4})
+	${5}
 	$(call msg,hsh)
-	cabal run hsh -- -a ${1} $(HSH_ARGS) < $(INPUTFILE)
+	cabal run hsh -- -a ${1} ${2} $(HSH_ARGS) < $(INPUTFILE)
 endef
 
 $(INPUTFILE):
@@ -95,33 +96,33 @@ $(KEYFILE):
 	dd if=/dev/urandom of=$@ bs=1 count=32
 
 test-md5: $(INPUTFILE)
-	$(call verify_alg,md5,md5sum,Md5-RFC,\
+	$(call verify_alg,md5,,md5sum,Md5-RFC,\
 		./tests/bin/Md5 < $(INPUTFILE))
 
 test-sha1: $(INPUTFILE)
-	$(call verify_alg,sha1,sha1sum,Sha1-RFC,\
+	$(call verify_alg,sha1,,sha1sum,Sha1-RFC,\
 		./tests/bin/Sha1 < $(INPUTFILE))
 
 test-sha224: $(INPUTFILE)
-	$(call verify_alg,sha224,sha224sum,Sha224-RFC,\
+	$(call verify_alg,sha224,,sha224sum,Sha224-RFC,\
 		tests/rfc/RFC-6234/shatest -s $(shell cat $(INPUTFILE)) -h1)
 
 test-sha256: $(INPUTFILE)
-	$(call verify_alg,sha256,sha256sum,Sha256-RFC,\
+	$(call verify_alg,sha256,,sha256sum,Sha256-RFC,\
 		tests/rfc/RFC-6234/shatest -s $(shell cat $(INPUTFILE)) -h2)
 
 test-hmac: build $(INPUTFILE) $(KEYFILE)
-	$(call verify_alg,hmac,,golang/x/crypto/hmac,\
+	$(call verify_alg,hmac,,,golang/x/crypto/hmac,\
 		tests/bin/hmac -H $(INNER_HASH_ALGORITHM) -d $(INPUTFILE) $(KEYFILE))
 
 test-pbkdf2: build $(INPUTFILE) $(KEYFILE)
-	$(call verify_alg,pbkdf2,,golang/x/crypto/pbkdf2,\
+	$(call verify_alg,pbkdf2,-i $(PBKDF2_ITERATIONS),,golang/x/crypto/pbkdf2,\
 		tests/bin/pbkdf2 -H $(INNER_HASH_ALGORITHM) -d $(KEYFILE) $(INPUTFILE) \
 			$(PBKDF2_ITERATIONS) \
 			$(PBKDF2_DERIVED_KEY_LENGTH))
 
 test-scrypt: build $(INPUTFILE) $(KEYFILE)
-	$(call verify_alg,scrypt,,golang/x/crypto/scrypt,\
+	$(call verify_alg,scrypt,-i $(SCRYPT_PBKDF2_ITERATIONS),,golang/x/crypto/scrypt,\
 		tests/bin/scrypt -d $(KEYFILE) $(INPUTFILE) \
 			$(SCRYPT_MEMORY_COST) \
 			$(SCRYPT_BLOCK_SIZE) \
