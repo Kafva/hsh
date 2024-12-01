@@ -36,13 +36,16 @@ common warnings
 executable hsh
     import:           warnings
     main-is:          Main.hs
-    -- OS multithreading support(?)
-    ghc-options:      -threaded +RTS -N4 -RTS
+    -- Enable threading
+    ghc-options:     -threaded 
+    -- Make the built binary accept Haskell runtime options via +RTS: -rtsopts
+    ghc-options:     -rtsopts
     other-modules:    Md5
                       Sha1
                       Sha256
                       Hmac
                       Pbkdf2
+                      Scrypt
                       Template
                       Types
                       Log

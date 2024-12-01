@@ -19,24 +19,24 @@ prf :: [Word8] -> [Word8] -> Reader Config [Word8]
 prf password bytes = do
     Hmac.calculate bytes password
 
--- Accumlate the hLen blocks of `bytes` into one block with xor
+-- Accumulate the hLen blocks of `bytes` into one block with xor
 mapAccumXor :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
-mapAccumXor accumlator bytes hLen
+mapAccumXor accumulator bytes hLen
     | length bytes <= hLen = do
-        return (zipWith xor accumlator (take hLen bytes))
+        return (zipWith xor accumulator (take hLen bytes))
     | otherwise = do
-        mapAccumXor (zipWith xor accumlator (take hLen bytes)) (drop hLen bytes) hLen
+        mapAccumXor (zipWith xor accumulator (take hLen bytes)) (drop hLen bytes) hLen
 
 -- Return a flat array of [U_1, U_2, ... U_c]
 calculateU :: [Word8] -> [[Word8]] -> Int -> Int -> Reader Config [Word8]
-calculateU password accumlator i iterations
-    | i == iterations + 1 = return (concat (reverse accumlator))
+calculateU password accumulator i iterations
+    | i == iterations + 1 = return (concat (reverse accumulator))
     | otherwise = do
-        -- Pick out the block from the previous iteration from the accumlator
-        currentU <- prf password (head accumlator)
-        -- Note: we prepend the lastest U to the accumlator (so that we can use `head`),
+        -- Pick out the block from the previous iteration from the accumulator
+        currentU <- prf password (head accumulator)
+        -- Note: we prepend the latest U to the accumulator (so that we can use `head`),
         -- the final return value needs to be blockwise reversed with this approach!
-        calculateU password (currentU : accumlator) (i+1) iterations
+        calculateU password (currentU : accumulator) (i+1) iterations
 
 calculateT :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
 calculateT password salt blockIndex = do
@@ -46,7 +46,6 @@ calculateT password salt blockIndex = do
     u1 <- prf password s1
     let blocksU = runReader (calculateU password [u1] 2 (iterations cfg)) cfg
     mapAccumXor (replicate hLen 0) blocksU hLen
-
 
 spawnWorker :: [Word8] -> [Word8] -> Int -> ConfigMonad (MVar [Word8])
 spawnWorker password salt blockIndex = do
@@ -103,7 +102,7 @@ deriveKey password salt = do
 
     ts <- if enableThreads cfg then do
         -- The threaded approach is not faster, probably too much overhead
-        -- creating threads...
+        -- creating and waiting for threads...
         -- Each call launches a new thread and returns a MVar (Mutable variable)
         -- that will be populated with the result for the given block index.
         mVars <- mapM (\i -> do spawnWorker password salt i) [1..derivedBlockCount]

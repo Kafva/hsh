@@ -9,6 +9,8 @@ RFC-6234
 # Haskell
 dist-newstyle
 *.hi
+*.prof
+cabal.project.local
 
 # macOS
 Music Library.musiclibrary

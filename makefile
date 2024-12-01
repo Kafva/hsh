@@ -121,3 +121,16 @@ test: build $(INPUTFILE) $(KEYFILE)
 	$(call verify_ok,pbkdf2,$(shell tests/bin/pbkdf2 -H $(INNER_HASH_ALGORITHM) $(KEYFILE) $(INPUTFILE) \
 		$(PBKDF2_ITERATIONS) $(PBKDF2_DERIVED_KEY_LENGTH)))
 
+profile: $(INPUTFILE)
+	rm -f *.prof 2> /dev/null
+	rm -f cabal.project.local
+	@# Compile time template functions do not build with profiling enabled, build
+	@# once without profiling support and then rebuild with it enabled
+	cabal build -v0
+	cabal v2-configure --enable-profiling
+	@# The program will accept runtime options after +RTS when compiled with `-rtsopts`,
+	@# A .prof report is generated with `-p`.
+	cabal run hsh -- +RTS -p -N -RTS $(HSH_ARGS) -a pbkdf2 < $(INPUTFILE)
+	rm -f cabal.project.local
+	cat *.prof
+
