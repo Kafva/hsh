@@ -15,8 +15,8 @@ KEYFILE ?= .testenv/key.dat
 # Maximum key length: (2^32 - 1) * hLen 
 # For sha1: hLen=20
 PBKDF2_DERIVED_KEY_LENGTH ?= 64
-PBKDF2_ITERATIONS ?= 512
 INNER_HASH_ALGORITHM ?= sha256
+PBKDF2_ITERATIONS ?= 512
 
 # Memory cost parameter for scrypt (N)
 SCRYPT_MEMORY_COST ?= 32768
@@ -25,12 +25,11 @@ SCRYPT_PARALLELISATION ?= 1
 # Block size for scrypt (r)
 SCRYPT_BLOCK_SIZE ?= 8 
 SCRYPT_DERIVED_KEY_LENGTH = 64
+SCRYPT_PBKDF2_ITERATIONS = 1
 
 HSH_ARGS += -k $(KEYFILE)
-HSH_ARGS += -i $(PBKDF2_ITERATIONS)
 HSH_ARGS += -l $(PBKDF2_DERIVED_KEY_LENGTH)
 HSH_ARGS += -H $(INNER_HASH_ALGORITHM)
-HSH_ARGS +=
 
 ################################################################################
 
@@ -60,12 +59,13 @@ define msg
 endef
 
 # $1: Algorithm
-# $2: Expected output
+# $2: Additional hsh arguments
+# $3: Expected output
 define verify_ok
-	@if [ $(shell cabal run hsh -- -a ${1} $(HSH_ARGS) < $(INPUTFILE)) = ${2} ]; then \
-		printf "[ \033[92m OK \033[0m ] %-7s %s\n" ${1} ${2}; \
+	@if [ $(shell cabal run hsh -- -a ${1} $(HSH_ARGS) ${2} < $(INPUTFILE)) = ${3} ]; then \
+		printf "[ \033[92m OK \033[0m ] %-7s %s\n" ${1} ${3}; \
 	else \
-		printf "[ \033[91mFAIL\033[0m ] %-7s %s\n" ${1}; \
+		printf "[ \033[91mFAIL\033[0m ] %-7s %s\n" ${1} ${3}; \
 	fi
 endef
 
@@ -130,13 +130,18 @@ test-scrypt: build $(INPUTFILE) $(KEYFILE)
 
 test: build $(INPUTFILE) $(KEYFILE)
 	mkdir -p .testenv
-	$(call verify_ok,md5,$(shell md5sum < $(INPUTFILE) | awk '{print $$1}'))
-	$(call verify_ok,sha1,$(shell sha1sum < $(INPUTFILE) | awk '{print $$1}'))
-	$(call verify_ok,sha224,$(shell sha224sum < $(INPUTFILE) | awk '{print $$1}'))
-	$(call verify_ok,sha256,$(shell sha256sum < $(INPUTFILE) | awk '{print $$1}'))
-	$(call verify_ok,hmac,$(shell tests/bin/hmac -H $(INNER_HASH_ALGORITHM) $(INPUTFILE) $(KEYFILE)))
-	$(call verify_ok,pbkdf2,$(shell tests/bin/pbkdf2 -H $(INNER_HASH_ALGORITHM) $(KEYFILE) $(INPUTFILE) \
+	$(call verify_ok,md5,,$(shell md5sum < $(INPUTFILE) | awk '{print $$1}'))
+	$(call verify_ok,sha1,,$(shell sha1sum < $(INPUTFILE) | awk '{print $$1}'))
+	$(call verify_ok,sha224,,$(shell sha224sum < $(INPUTFILE) | awk '{print $$1}'))
+	$(call verify_ok,sha256,,$(shell sha256sum < $(INPUTFILE) | awk '{print $$1}'))
+	$(call verify_ok,hmac,,$(shell tests/bin/hmac -H $(INNER_HASH_ALGORITHM) $(INPUTFILE) $(KEYFILE)))
+	$(call verify_ok,pbkdf2,-i $(PBKDF2_ITERATIONS),$(shell tests/bin/pbkdf2 -H $(INNER_HASH_ALGORITHM) $(KEYFILE) $(INPUTFILE) \
 		$(PBKDF2_ITERATIONS) $(PBKDF2_DERIVED_KEY_LENGTH)))
+	$(call verify_ok,scrypt,-i $(SCRYPT_PBKDF2_ITERATIONS),$(shell tests/bin/scrypt $(KEYFILE) $(INPUTFILE) \
+		$(SCRYPT_MEMORY_COST) \
+		$(SCRYPT_BLOCK_SIZE) \
+		$(SCRYPT_PARALLELISATION) \
+		$(SCRYPT_DERIVED_KEY_LENGTH)))
 
 profile: $(INPUTFILE)
 	rm -f *.prof 2> /dev/null

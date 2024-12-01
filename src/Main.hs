@@ -13,13 +13,13 @@ import Types (Config(..), HashSignature)
 import Util (word8ArrayToHexString, word8ArrayToHexArray, stringToInt, intToString)
 import Log (debug', debug'')
 
-import Control.Monad (unless)
 import System.IO (hPutStrLn, stderr)
 import System.Environment (getProgName, getArgs)
 import System.Console.GetOpt
 import Data.Foldable (for_)
 import System.Exit (exitFailure, exitSuccess, die)
 import Control.Monad.Reader (runReaderT, runReader)
+import Control.Monad (unless)
 
 import qualified Data.ByteString as BS
 import Data.Word (Word8)
@@ -33,7 +33,7 @@ defaultOptions = Config {
     innerAlgorithm = Sha1.hash,
     innerAlgorithmLength = 20,
     keySource = "",
-    iterations = 512,
+    iterations = 1,
     derivedKeyLength = 64,
     memoryCost = 32768,
     blockSize = 8,
@@ -88,7 +88,7 @@ options = [
         )) "Print help information",
 
         Option ['a'] ["algorithm"] (ReqArg (\arg opt -> do
-            return opt { 
+            return opt {
                 algorithm = arg
             }
         ) "algorithm")
@@ -96,8 +96,8 @@ options = [
 
         Option ['H'] ["hash"] (ReqArg (\arg opt -> do
             let (hashFunction, hashLength) = stringToHashAlgorithm arg
-            return opt { 
-                innerAlgorithm = hashFunction, 
+            return opt {
+                innerAlgorithm = hashFunction,
                 innerAlgorithmLength = hashLength
             }
         ) "hash")
@@ -171,7 +171,7 @@ main = do
 
         s | s == "hmac" || s == "pbkdf2" || s == "scrypt" -> do
             keyByteString <- if keySource opts == ""
-                              then die "No key data provided"
+                              then die "ERROR: No key data provided"
                               else BS.readFile (keySource opts)
             let key = BS.unpack keyByteString
             runReaderT (debug'' "key [%d byte(s)]: %s\n"
@@ -183,9 +183,11 @@ main = do
                     let mac = runReader (Hmac.calculate bytes key) opts
                     putStrLn $ word8ArrayToHexString mac 32
                 "pbkdf2" -> do
-                    derivedKey <- runReaderT (Pbkdf2.deriveKey key bytes) opts
+                    derivedKey <- runReaderT (Pbkdf2.deriveKey key bytes (derivedKeyLength opts)) opts
                     putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
                 "scrypt" -> do
+                    unless (iterations opts == 1) $ die "ERROR: Pbkdf2 iterations should be set to 1 for Scrypt"
+
                     let derivedKey = runReader (Scrypt.deriveKey key bytes) opts
                     putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
                 _ -> putStrLn $ "Invalid algorithm: " ++ algorithm opts

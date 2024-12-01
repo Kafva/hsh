@@ -85,10 +85,9 @@ spawnWorker password salt blockIndex = do
  -
  - https://www.ietf.org/rfc/rfc2898.txt
  -}
-deriveKey :: [Word8] -> [Word8] -> ConfigMonad [Word8]
-deriveKey password salt = do
+deriveKey :: [Word8] -> [Word8] -> Int -> ConfigMonad [Word8]
+deriveKey password salt dkLen = do
     cfg <- ask
-    let dkLen = derivedKeyLength cfg
     let hLen = innerAlgorithmLength cfg
 
     when (dkLen > (2 ^ (32 :: Int) - 1) * hLen) $ error "Derived key length to large"
