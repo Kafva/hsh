@@ -1,4 +1,4 @@
-.PHONY: test profile build clean
+.PHONY: test profile reset-profile build clean
 
 # Inputfile:
 #  * Acts as the input stream for hash algorithms
@@ -12,7 +12,7 @@ INPUTFILE ?= .testenv/input.dat
 # * Acts as the password for PBKDF2
 KEYFILE ?= .testenv/key.dat
 
-# Maximum key length: (2^32 - 1) * hLen 
+# Maximum key length: (2^32 - 1) * hLen
 # For sha1: hLen=20
 PBKDF2_DERIVED_KEY_LENGTH ?= 64
 INNER_HASH_ALGORITHM ?= sha256
@@ -23,7 +23,7 @@ SCRYPT_MEMORY_COST ?= 32768
 # Parallelisation parameter for scrypt (p)
 SCRYPT_PARALLELISATION ?= 1
 # Block size for scrypt (r)
-SCRYPT_BLOCK_SIZE ?= 8 
+SCRYPT_BLOCK_SIZE ?= 8
 SCRYPT_DERIVED_KEY_LENGTH = 64
 SCRYPT_PBKDF2_ITERATIONS = 1
 
@@ -33,23 +33,24 @@ HSH_ARGS += -H $(INNER_HASH_ALGORITHM)
 
 ################################################################################
 
-build: tests/rfc/RFC-6234
+build: reset-profile tests/rfc/RFC-6234
 	cabal build -v0
 	mkdir -p tests/bin
 	clang -w tests/rfc/Sha1.c -o tests/bin/Sha1
 	clang -w tests/rfc/Md5.c -o tests/bin/Md5
 	$(MAKE) -C tests/rfc/RFC-6234
-	go build -C tests -o bin/hmac  main.go
-	go build -C tests -o bin/pbkdf2 main.go
-	go build -C tests -o bin/scrypt main.go
+	go build -C tests -o bin/hash  main.go
+	ln -fns ./hash tests/bin/hmac
+	ln -fns ./hash tests/bin/pbkdf2
+	ln -fns ./hash tests/bin/scrypt
 
 tests/rfc/RFC-6234:
 	git clone --depth 1 https://github.com/Madricas/RFC-6234.git $@
 
-install: src/*.hs
+install: reset-profile src/*.hs
 	cabal install --overwrite-policy=always
 
-clean:
+clean: reset-profile
 	rm -rf dist-newstyle tests/bin .testenv
 
 ################################################################################
@@ -144,11 +145,12 @@ test: build $(INPUTFILE) $(KEYFILE)
 		$(SCRYPT_PARALLELISATION) \
 		$(SCRYPT_DERIVED_KEY_LENGTH)))
 
-profile: $(INPUTFILE)
+reset-profile:
 	rm -f *.prof 2> /dev/null
+	@# Compile time template functions do not build with profiling enabled
 	rm -f cabal.project.local
-	@# Compile time template functions do not build with profiling enabled, build
-	@# once without profiling support and then rebuild with it enabled
+
+profile: $(INPUTFILE) reset-profile
 	cabal build -v0
 	cabal v2-configure --enable-profiling
 	@# The program will accept runtime options after +RTS when compiled with `-rtsopts`,
