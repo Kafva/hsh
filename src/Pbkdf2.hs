@@ -84,7 +84,7 @@ derivedBlockCount dkLen hLen
  -     U_1 = PRF (P, S || INT (i)) ,
  -     U_2 = PRF (P, U_1) ,
  -     ...
- -     U_c = PRF (P, U_{c-1}) .
+ -     U_c = PRF (P, U_{c-1})
  -
  - Result:
  -     DK = T_1 || T_2 ||  ...  || T_l<0..r-1>

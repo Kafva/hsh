@@ -23,6 +23,7 @@ import Control.Monad (unless)
 
 import qualified Data.ByteString as BS
 import Data.Word (Word8)
+import Data.Bits ((.&.))
 
 defaultOptions :: Config
 defaultOptions = Config {
@@ -143,7 +144,7 @@ options = [
 main :: IO ()
 main = do
     args <- getArgs
-    -- `optionsFn` will hold the (Config -> IO Config) functions defined for each option
+    -- `options` will hold the (Config -> IO Config) functions defined for each option
     let (optionsFn, _, errors) = getOpt RequireOrder options args
 
     -- Check for command line parsing errors
@@ -156,9 +157,8 @@ main = do
     runReaderT (debug' "%s\n" (show opts)) opts
 
     -- Read from stdin
-    -- input <- BS.getContents
-    -- let bytes :: [Word8] = BS.unpack input
-    let bytes = [0x1,0x2,0x3,0x4,0x5]
+    input <- BS.getContents
+    let bytes :: [Word8] = BS.unpack input
 
     runReaderT (debug'' "input [%d byte(s)]: %s \n"
                 (length bytes)
@@ -187,7 +187,12 @@ main = do
                     derivedKey <- runReaderT (Pbkdf2.deriveKeyIO key bytes (derivedKeyLength opts)) opts
                     putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
                 "scrypt" -> do
-                    unless (iterations opts == 1) $ die "ERROR: Pbkdf2 iterations should be set to 1 for Scrypt"
+                    unless (iterations opts == 1) $ die
+                        "ERROR: Pbkdf2 iterations should be set to 1 for Scrypt"
+                    -- A power of 2 has exactly one '1' in binary.
+                    unless ((memoryCost opts == 1) ||
+                            ((memoryCost opts .&. (memoryCost opts - 1)) == 0)) $ die
+                        ("ERROR: N=" ++ show (memoryCost opts) ++ " must be a power of 2")
 
                     let derivedKey = runReader (Scrypt.deriveKey key bytes) opts
                     putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)

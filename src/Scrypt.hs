@@ -34,25 +34,26 @@ salsaStep j = case j of
 
 salsaRunRound :: [Word32] -> Int -> Reader Config [Word32]
 salsaRunRound bytes32 ij = do
-    let i = ij `div` 4
+    -- i and j give us the indices inside bytes32 to use from salsaRounds[]
+    let i = ij `mod` 8
     let j = ij `mod` 4
     -- Assignment at index: j
     let i0 = (salsaRounds!!i)!!j
     let a0 = bytes32!!i0
     -- First argument at index: (j+3 % 4)
-    let i1 = (salsaRounds!!i)!!(j+3 `mod` 4)
+    let i1 = (salsaRounds!!i)!!((j+3) `mod` 4)
     let a1 = bytes32!!i1
     -- Second argument at index: (j+2 % 4)
-    let i2 = (salsaRounds!!i)!!(j+2 `mod` 4)
+    let i2 = (salsaRounds!!i)!!((j+2) `mod` 4)
     let a2 = bytes32!!i2
-    -- Calculate the new value to assign at bytes32[i][j]
+    -- Calculate the new value to assign at bytes32[i0]
     let b0 = a0 `xor` salsaR (a1 + a2) (salsaStep j)
-    return $ take (i*j) bytes32 ++ [b0] ++ drop (i*j) bytes32
+    return $ take i0 bytes32 ++ [b0] ++ drop (i0+1) bytes32
 
 
 -- Salsa20/8 Core, hash function that maps a 64 byte input to a 64 byte output.
--- Equivilent to a Word32 array with 16 items.
--- Not collison resistant.
+-- Equivalent to a Word32 array with 16 items.
+-- Not collision resistant.
 salsaCore :: [Word8] -> Reader Config [Word8]
 salsaCore bytes = do
     let bytes32 = word8toWord32ArrayLE bytes
@@ -61,7 +62,6 @@ salsaCore bytes = do
 
 
 {-
- - :main ["-a", "scrypt", "-i", "1", "-k", ".testenv/key.dat", "-l", "64", "-H", "sha256"]
  -
  -  Scrypt(P, S, N, r, p, dkLen):
  -
