@@ -48,15 +48,16 @@ salsaRunRound bytes32 (_, i, j) = do
     let b0 = a0 `xor` salsaR (a1 + a2) (salsaStep j)
     return $ take i0 bytes32 ++ [b0] ++ drop (i0+1) bytes32
 
-
--- Salsa20/8 Core, hash function that maps a 64 byte input to a 64 byte output.
--- Equivalent to a Word32 array with 16 items.
--- Not collision resistant.
+{-
+ - Salsa20/8 Core, hash function that maps a 64 byte input to a 64 byte output.
+ - Equivalent to a Word32 array with 16 items.
+ - Not collision resistant.
+ -}
 salsaCore :: [Word8] -> Reader Config [Word8]
 salsaCore bytes = do
     let bytes32 = word8toWord32ArrayLE bytes
-    -- Indices for the three loops of the salsa algorithm:
-    --  k:  (for i := 0; i < 8; i += 2) from reference algorithm
+    -- Indices for the three loops of the Salsa algorithm:
+    --  k:  (for i := 0; i < 8; i += 2) from reference implementation
     --  i:  length of `salsaRounds`
     --  j:  length of each item in `salsaRounds`
     let indices :: [(Int, Int, Int)] = [(k, i, j) | k <- [0..3], i <- [0..7], j <- [0..3]]
@@ -65,6 +66,43 @@ salsaCore bytes = do
     let out = zipWith (+) s bytes32
     return $ word32ArrayToWord8ArrayLE out
 
+
+blockMixInner :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
+blockMixInner ys bytes i = do
+    cfg <- ask
+    let r = blockSize cfg
+
+    let y = drop (length ys - r) ys
+    let block = take r (drop (i*r) bytes)
+
+    next <- salsaCore (zipWith xor y block)
+    return $ ys ++ next
+
+-- The input is raw bytes, it is divided into 64 byte blocks
+blockMix :: [Word8] -> Reader Config [Word8]
+blockMix bytes = do
+    cfg <- ask
+    let r = blockSize cfg
+
+    let accumulator = take r (drop (2*r-1) bytes)
+    out <- foldlM (blockMixInner accumulator) bytes [0..(2*r-1)]
+
+    -- (Y[0], Y[2], ..., Y[2 * r - 2],
+    --  Y[1], Y[3], ..., Y[2 * r - 1])
+    return $ [out!!i | i <- [0,2..(2*r-2)]] ++ 
+             [out!!(1+i) | i <- [0,2..(2*r-1)]]
+    
+
+romMix :: [Word8] -> Reader Config [Word8]
+romMix bytes = do
+    cfg <- ask
+    let r = blockSize cfg
+    
+    -- WIP
+    v <- forM [0..memoryCost cfg - 1] $ \i -> blockMix (take r (drop (r*i) bytes))
+    return $ concat v
+    -- v <- forM [0..(memoryCost cfg) - 1] $ \i -> do 
+    --     let j = block!!(2 * r - 1)
 
 {-
  -
@@ -93,8 +131,14 @@ deriveKey password salt = do
     let r = blockSize cfg
     let p = parallelisationParam cfg
     let outLen = p * 128 * r
+
+    -- Calculate a Pbkdf2 key for the provided password and salt
     b <- Pbkdf2.deriveKey password salt outLen
 
-    return b
+    -- Run romMix() over each block (128*r bytes) of the derived key
+    b2 <- romMix b
+
+    -- New calculation of Pbkdf2 on the password but with b2 as the salt
+    Pbkdf2.deriveKey password b2 (derivedKeyLength cfg)
 
    
