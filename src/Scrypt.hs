@@ -7,6 +7,7 @@ import Data.Foldable (foldlM)
 import Types (Config(..))
 import Data.Bits ((.|.), xor, shiftL, shiftR)
 import Util (word8toWord32ArrayLE, word32ArrayToWord8ArrayLE)
+import Log (trace')
 
 salsaRounds :: [[Int]]
 salsaRounds = [
@@ -32,11 +33,8 @@ salsaStep j = case j of
             3 -> 18
             _ -> error "Invalid iteration count"
 
-salsaRunRound :: [Word32] -> Int -> Reader Config [Word32]
-salsaRunRound bytes32 ij = do
-    -- i and j give us the indices inside bytes32 to use from salsaRounds[]
-    let i = ij `mod` 8
-    let j = ij `mod` 4
+salsaRunRound :: [Word32] -> (Int, Int, Int) -> Reader Config [Word32]
+salsaRunRound bytes32 (_, i, j) = do
     -- Assignment at index: j
     let i0 = (salsaRounds!!i)!!j
     let a0 = bytes32!!i0
@@ -57,8 +55,15 @@ salsaRunRound bytes32 ij = do
 salsaCore :: [Word8] -> Reader Config [Word8]
 salsaCore bytes = do
     let bytes32 = word8toWord32ArrayLE bytes
-    s <- foldlM salsaRunRound bytes32 [0..(4*8)]
-    return $ word32ArrayToWord8ArrayLE s
+    -- Indices for the three loops of the salsa algorithm:
+    --  k:  (for i := 0; i < 8; i += 2) from reference algorithm
+    --  i:  length of `salsaRounds`
+    --  j:  length of each item in `salsaRounds`
+    let indices :: [(Int, Int, Int)] = [(k, i, j) | k <- [0..3], i <- [0..7], j <- [0..3]]
+    s <- foldlM salsaRunRound bytes32 indices
+    -- Final step, word-wise addition with the original value
+    let out = zipWith (+) s bytes32
+    return $ word32ArrayToWord8ArrayLE out
 
 
 {-
@@ -81,8 +86,15 @@ salsaCore bytes = do
 deriveKey :: [Word8] -> [Word8] -> Reader Config [Word8]
 deriveKey password salt = do
     cfg <- ask
+    -- Salsa test:
+    -- let salsaIn :: [Word32] = [0..15]
+    -- salsaCore (word32ArrayToWord8ArrayLE salsaIn)
+
     let r = blockSize cfg
     let p = parallelisationParam cfg
     let outLen = p * 128 * r
     b <- Pbkdf2.deriveKey password salt outLen
-    salsaCore b
+
+    return b
+
+   
