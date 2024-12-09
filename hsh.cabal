@@ -50,7 +50,8 @@ executable hsh
                       Types
                       Log
                       Util
-    build-depends:    base >=4.17.0.0,
+    build-depends:    array,
+                      base >=4.17.0.0,
                       bytestring,
                       binary,
                       parallel,

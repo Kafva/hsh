@@ -1,6 +1,7 @@
 module Scrypt (Scrypt.deriveKey) where
 
 import Pbkdf2
+import Data.Array
 import Data.Binary (Word8, Word32)
 import Control.Monad.Reader
 import Data.Foldable (foldlM)
@@ -9,20 +10,20 @@ import Data.Bits ((.|.), xor, shiftL, shiftR)
 import Util (word8toWord32ArrayLE, word32ArrayToWord8ArrayLE, word8ArrayToHexArray)
 import Log (trace')
 
-salsaRounds :: [[Int]]
-salsaRounds = [
-        [4, 8, 12, 0],
-        [9, 13, 1, 5],
-        [14, 2, 6, 10],
-        [3, 7, 11, 15],
-        [1, 2, 3, 0],
-        [6, 7, 4, 5],
-        [11, 8, 9, 10],
-        [12, 13, 14, 15]
-    ]
+salsaStep :: Array Int Int
+salsaStep = listArray (0,4) [7, 9, 13, 18]
 
-salsaStep :: [Int]
-salsaStep = [7, 9, 13, 18]
+salsaRounds :: Array Int (Array Int Int)
+salsaRounds = array (0,8) [
+        (0, listArray (0,4) [4, 8, 12, 0]),
+        (1, listArray (0,4) [9, 13, 1, 5]),
+        (2, listArray (0,4) [14, 2, 6, 10]),
+        (3, listArray (0,4) [3, 7, 11, 15]),
+        (4, listArray (0,4) [1, 2, 3, 0]),
+        (5, listArray (0,4) [6, 7, 4, 5]),
+        (6, listArray (0,4) [11, 8, 9, 10]),
+        (7, listArray (0,4) [12, 13, 14, 15])
+    ]
 
 -- R(a,b) (((a) << (b)) | ((a) >> (32 - (b))))
 salsaR :: Word32 -> Int -> Word32
@@ -31,16 +32,16 @@ salsaR a b = (a `shiftL` b) .|. (a `shiftR` (32 - b))
 salsaRunRound :: [Word32] -> (Int, Int, Int) -> Reader Config [Word32]
 salsaRunRound bytes32 (_, i, j) = do
     -- Assignment at index: j
-    let i0 = (salsaRounds!!i)!!j
+    let i0 = (salsaRounds!i)!j
     let a0 = bytes32!!i0
     -- First argument at index: (j+3 % 4)
-    let i1 = (salsaRounds!!i)!!((j+3) `mod` 4)
+    let i1 = (salsaRounds!i)!((j+3) `mod` 4)
     let a1 = bytes32!!i1
     -- Second argument at index: (j+2 % 4)
-    let i2 = (salsaRounds!!i)!!((j+2) `mod` 4)
+    let i2 = (salsaRounds!i)!((j+2) `mod` 4)
     let a2 = bytes32!!i2
     -- Calculate the new value to assign at bytes32[i0]
-    let b0 = a0 `xor` salsaR (a1 + a2) (salsaStep!!j)
+    let b0 = a0 `xor` salsaR (a1 + a2) (salsaStep!j)
     return $ take i0 bytes32 ++ [b0] ++ drop (i0+1) bytes32
 
 {-
@@ -58,13 +59,14 @@ salsaCore bytes = do
     --  k:  (for i := 0; i < 8; i += 2) from reference implementation
     --  i:  length of `salsaRounds`
     --  j:  length of each item in `salsaRounds`
-    let indices = [(k, i, j) | k <- [0..3],
-                               i <- [0..7],
-                               j <- [0..3]]
-    s <- foldlM salsaRunRound bytes32 indices
+    let tpl :: [(Int, Int, Int)] = [(k, i, j) | k <- [0..3],
+                                                i <- [0..7],
+                                                j <- [0..3]]
+    s <- foldlM salsaRunRound bytes32 tpl
     -- Final step, word-wise addition with the original value
     let out = zipWith (+) s bytes32
-    return $ word32ArrayToWord8ArrayLE out
+    trace' "[Salsa] out: %s" (word8ArrayToHexArray (word32ArrayToWord8ArrayLE out) 64) $
+        word32ArrayToWord8ArrayLE out
 
 
 blockMixInner :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
@@ -108,7 +110,6 @@ blockMix bytes = do
  -  2. for i = 0 to N - 1 do
  -       V[i] = X
  -       X = scryptBlockMix (X)
- -     end for
  -
  -  3. for i = 0 to N - 1 do
  -       j = Integerify (X) mod N
@@ -117,7 +118,6 @@ blockMix bytes = do
  -              little-endian integer.
  -       T = X xor V[j]
  -       X = scryptBlockMix (T)
- -     end for
  -
  -  4. B' = X
  -}
@@ -126,10 +126,10 @@ romMix bytes = do
     cfg <- ask
     let r = blockSize cfg
 
-    blockMix (take (128*r) (drop (128*r*0) bytes))
+    --blockMix (take (128*r) (drop (128*r*0) bytes))
     -- WIP
-    -- v <- forM [0..memoryCost cfg - 1] $ \i -> blockMix (take (128*r) (drop (128*r*i) bytes))
-    -- return $ concat v
+    v <- forM [0..memoryCost cfg - 1] $ \i -> blockMix (take (128*r) (drop (128*r*i) bytes))
+    return $ concat v
     -- v <- forM [0..(memoryCost cfg) - 1] $ \i -> do
     --     let j = block!!(2 * r - 1)
 
@@ -169,5 +169,4 @@ deriveKey password salt = do
 
     -- New calculation of Pbkdf2 on the password but with b2 as the salt
     Pbkdf2.deriveKey password b2 (derivedKeyLength cfg)
-
 
