@@ -6,7 +6,7 @@ import Control.Monad.Reader
 import Data.Foldable (foldlM)
 import Types (Config(..))
 import Data.Bits ((.|.), xor, shiftL, shiftR)
-import Util (word8toWord32ArrayLE, word32ArrayToWord8ArrayLE)
+import Util (word8toWord32ArrayLE, word32ArrayToWord8ArrayLE, word8ArrayToHexArray)
 import Log (trace')
 
 salsaRounds :: [[Int]]
@@ -21,17 +21,12 @@ salsaRounds = [
         [12, 13, 14, 15]
     ]
 
+salsaStep :: [Int]
+salsaStep = [7, 9, 13, 18]
+
 -- R(a,b) (((a) << (b)) | ((a) >> (32 - (b))))
 salsaR :: Word32 -> Int -> Word32
 salsaR a b = (a `shiftL` b) .|. (a `shiftR` (32 - b))
-
-salsaStep :: Int -> Int
-salsaStep j = case j of
-            0 -> 7
-            1 -> 9
-            2 -> 13
-            3 -> 18
-            _ -> error "Invalid iteration count"
 
 salsaRunRound :: [Word32] -> (Int, Int, Int) -> Reader Config [Word32]
 salsaRunRound bytes32 (_, i, j) = do
@@ -45,7 +40,7 @@ salsaRunRound bytes32 (_, i, j) = do
     let i2 = (salsaRounds!!i)!!((j+2) `mod` 4)
     let a2 = bytes32!!i2
     -- Calculate the new value to assign at bytes32[i0]
-    let b0 = a0 `xor` salsaR (a1 + a2) (salsaStep j)
+    let b0 = a0 `xor` salsaR (a1 + a2) (salsaStep!!j)
     return $ take i0 bytes32 ++ [b0] ++ drop (i0+1) bytes32
 
 {-
@@ -55,12 +50,17 @@ salsaRunRound bytes32 (_, i, j) = do
  -}
 salsaCore :: [Word8] -> Reader Config [Word8]
 salsaCore bytes = do
+    when (length bytes /= 64) $ error $
+        "Bad input length for Salsa20/8: " ++ show (length bytes) ++ " byte(s)"
+
     let bytes32 = word8toWord32ArrayLE bytes
     -- Indices for the three loops of the Salsa algorithm:
     --  k:  (for i := 0; i < 8; i += 2) from reference implementation
     --  i:  length of `salsaRounds`
     --  j:  length of each item in `salsaRounds`
-    let indices :: [(Int, Int, Int)] = [(k, i, j) | k <- [0..3], i <- [0..7], j <- [0..3]]
+    let indices = [(k, i, j) | k <- [0..3],
+                               i <- [0..7],
+                               j <- [0..3]]
     s <- foldlM salsaRunRound bytes32 indices
     -- Final step, word-wise addition with the original value
     let out = zipWith (+) s bytes32
@@ -68,40 +68,69 @@ salsaCore bytes = do
 
 
 blockMixInner :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
-blockMixInner ys bytes i = do
-    cfg <- ask
-    let r = blockSize cfg
+blockMixInner bytes ys i = do
+    -- B[i]: current input block
+    let b = take 64 (drop (i*64) bytes)
+    -- Y[i]: output block from previous calculation
+    let y = drop (length ys - 64) ys
+    let t = zipWith xor y b
+    out <- salsaCore t
+    return $ ys ++ out
 
-    let y = drop (length ys - r) ys
-    let block = take r (drop (i*r) bytes)
-
-    next <- salsaCore (zipWith xor y block)
-    return $ ys ++ next
-
--- The input is raw bytes, it is divided into 64 byte blocks
+{-
+ -  Each element in B[] and Y[] are 64 byte blocks.
+ -
+ -  1. X = B[2 * r - 1]
+ -
+ -  2. for i = 0 to 2 * r - 1 do
+ -       T = X xor B[i]
+ -       X = Salsa (T)
+ -       Y[i] = X
+ -
+ -  3. (Y[0], Y[2], ..., Y[2 * r - 2],
+ -      Y[1], Y[3], ..., Y[2 * r - 1])
+ -}
 blockMix :: [Word8] -> Reader Config [Word8]
 blockMix bytes = do
     cfg <- ask
     let r = blockSize cfg
 
-    let accumulator = take r (drop (2*r-1) bytes)
-    out <- foldlM (blockMixInner accumulator) bytes [0..(2*r-1)]
+    let accumulator = take 64 (drop (2*r-1) bytes)
+    out <- foldlM (blockMixInner bytes) accumulator [0..(2*r-1)]
 
-    -- (Y[0], Y[2], ..., Y[2 * r - 2],
-    --  Y[1], Y[3], ..., Y[2 * r - 1])
-    return $ [out!!i | i <- [0,2..(2*r-2)]] ++ 
+    return $ [out!!i     | i <- [0,2..(2*r-2)]] ++
              [out!!(1+i) | i <- [0,2..(2*r-1)]]
-    
 
+
+{-
+ -  1. X = B
+ -
+ -  2. for i = 0 to N - 1 do
+ -       V[i] = X
+ -       X = scryptBlockMix (X)
+ -     end for
+ -
+ -  3. for i = 0 to N - 1 do
+ -       j = Integerify (X) mod N
+ -              where Integerify (B[0] ... B[2 * r - 1]) is defined
+ -              as the result of interpreting B[2 * r - 1] as a
+ -              little-endian integer.
+ -       T = X xor V[j]
+ -       X = scryptBlockMix (T)
+ -     end for
+ -
+ -  4. B' = X
+ -}
 romMix :: [Word8] -> Reader Config [Word8]
 romMix bytes = do
     cfg <- ask
     let r = blockSize cfg
-    
+
+    blockMix (take (128*r) (drop (128*r*0) bytes))
     -- WIP
-    v <- forM [0..memoryCost cfg - 1] $ \i -> blockMix (take r (drop (r*i) bytes))
-    return $ concat v
-    -- v <- forM [0..(memoryCost cfg) - 1] $ \i -> do 
+    -- v <- forM [0..memoryCost cfg - 1] $ \i -> blockMix (take (128*r) (drop (128*r*i) bytes))
+    -- return $ concat v
+    -- v <- forM [0..(memoryCost cfg) - 1] $ \i -> do
     --     let j = block!!(2 * r - 1)
 
 {-
@@ -135,10 +164,10 @@ deriveKey password salt = do
     -- Calculate a Pbkdf2 key for the provided password and salt
     b <- Pbkdf2.deriveKey password salt outLen
 
-    -- Run romMix() over each block (128*r bytes) of the derived key
+    -- Run romMix() over each 128*r bytes block of the derived key
     b2 <- romMix b
 
     -- New calculation of Pbkdf2 on the password but with b2 as the salt
     Pbkdf2.deriveKey password b2 (derivedKeyLength cfg)
 
-   
+

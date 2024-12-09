@@ -19,7 +19,7 @@ INNER_HASH_ALGORITHM ?= sha256
 PBKDF2_ITERATIONS ?= 512
 
 # Memory cost parameter for scrypt (N)
-SCRYPT_MEMORY_COST ?= 32768
+SCRYPT_MEMORY_COST ?= 8 # 32768
 # Parallelisation parameter for scrypt (p)
 SCRYPT_PARALLELISATION ?= 1
 # Block size for scrypt (r)
@@ -30,6 +30,7 @@ SCRYPT_PBKDF2_ITERATIONS = 1
 HSH_ARGS += -k $(KEYFILE)
 HSH_ARGS += -l $(PBKDF2_DERIVED_KEY_LENGTH)
 HSH_ARGS += -H $(INNER_HASH_ALGORITHM)
+HSH_ARGS += -N $(SCRYPT_MEMORY_COST)
 
 ################################################################################
 

@@ -157,9 +157,9 @@ main = do
     runReaderT (debug' "%s\n" (show opts)) opts
 
     -- Read from stdin
-    -- input <- BS.getContents
-    -- let bytes :: [Word8] = BS.unpack input
-    let bytes = [0x0,0x1]
+    input <- BS.getContents
+    let bytes :: [Word8] = BS.unpack input
+    -- let bytes = [i | i <- [0..15]]
 
     runReaderT (debug'' "input [%d byte(s)]: %s \n"
                 (length bytes)
