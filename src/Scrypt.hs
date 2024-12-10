@@ -80,7 +80,9 @@ blockMixInner bytes ys i = do
     return $ ys ++ out
 
 {-
- -  Each element in B[] and Y[] are 64 byte blocks.
+ -
+ -  The accumulatorBytes argument is a concatenation of 128*r byte arrays
+ -  from each outer iteration that calls blockMix.
  -
  -  1. X = B[2 * r - 1]
  -
@@ -92,19 +94,40 @@ blockMixInner bytes ys i = do
  -  3. (Y[0], Y[2], ..., Y[2 * r - 2],
  -      Y[1], Y[3], ..., Y[2 * r - 1])
  -}
-blockMix :: [Word8] -> Reader Config [Word8]
-blockMix bytes = do
+blockMix :: [Word8] -> Int -> Reader Config [Word8]
+blockMix accumulatorBytes idx = do
     cfg <- ask
     let r = blockSize cfg
+    -- Fetch the block from the previous calculation
+    let bytes = drop (128*r*idx) accumulatorBytes
+    let blockCount = 2*r
 
-    let accumulator = take 64 (drop (2*r-1) bytes)
-    out <- foldlM (blockMixInner bytes) accumulator [0..(2*r-1)]
+    when (length bytes /= 128*r) $ error $
+        "Bad input length for blockMix: " ++ show (length bytes) ++ " byte(s)"
 
-    return $ [out!!i     | i <- [0,2..(2*r-2)]] ++
-             [out!!(1+i) | i <- [0,2..(2*r-1)]]
+    -- Initialise accumulator with the last block
+    let accumulator = drop (64*(blockCount-1)) bytes
+    out <- foldlM (blockMixInner bytes) accumulator [0..blockCount-1]
+
+    return $ bytes ++ concat (
+             [take (64*i) out     | i <- [0,2..blockCount-2]] ++
+             [take (64*(i+1)) out | i <- [0,2..blockCount-1]])
+
+
+xorBlockMix :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
+xorBlockMix vs bytes _ = do
+    cfg <- ask
+    let r = blockSize cfg
+    let j = 1 -- TODO
+    let v = take (128*r) (drop (128*r*j) vs)
+    blockMix (zipWith xor v bytes) 0
 
 
 {-
+ -  Takes a 128*r byte array as input, indices.
+ -  Indices for B[] and V[] are based on 64 byte blocks.
+ -  I.e. for r=8 there are 16 slots.
+ -
  -  1. X = B
  -
  -  2. for i = 0 to N - 1 do
@@ -125,13 +148,15 @@ romMix :: [Word8] -> Reader Config [Word8]
 romMix bytes = do
     cfg <- ask
     let r = blockSize cfg
+    let n = memoryCost cfg
+    when (length bytes /= 128*r) $ error $
+        "Bad input length for romMix: " ++ show (length bytes) ++ " byte(s)"
 
-    --blockMix (take (128*r) (drop (128*r*0) bytes))
-    -- WIP
-    v <- forM [0..memoryCost cfg - 1] $ \i -> blockMix (take (128*r) (drop (128*r*i) bytes))
-    return $ concat v
-    -- v <- forM [0..(memoryCost cfg) - 1] $ \i -> do
-    --     let j = block!!(2 * r - 1)
+    -- V[]: flat array of (n-1) 128*r blocks
+    vs <- foldlM blockMix bytes [0..n-1]
+
+    let x = drop (length vs - 128*r) vs
+    foldlM (xorBlockMix vs) x [0..n-1]
 
 {-
  -
@@ -165,7 +190,8 @@ deriveKey password salt = do
     b <- Pbkdf2.deriveKey password salt outLen
 
     -- Run romMix() over each 128*r bytes block of the derived key
-    b2 <- romMix b
+    bs <- forM [1..p] $ \i -> romMix (take (128 * r * i) b)
+    let b2 = concat bs
 
     -- New calculation of Pbkdf2 on the password but with b2 as the salt
     Pbkdf2.deriveKey password b2 (derivedKeyLength cfg)
