@@ -7,7 +7,7 @@ import Control.Monad.Reader
 import Data.Foldable (foldlM)
 import Types (Config(..))
 import Data.Bits ((.|.), xor, shiftL, shiftR)
-import Util (word8toWord32ArrayLE, word32ArrayToWord8ArrayLE, word8ArrayToHexArray)
+import Util (word8toWord32ArrayLE, word32ArrayToWord8ArrayLE, word8ArrayToHexArray, word8toWord64ArrayLE)
 import Log (trace')
 
 salsaStep :: Array Int Int
@@ -83,6 +83,7 @@ blockMixInner bytes ys i = do
  -
  -  The accumulatorBytes argument is a concatenation of 128*r byte arrays
  -  from each outer iteration that calls blockMix.
+ -  (128*r == 2*r * 64)
  -
  -  1. X = B[2 * r - 1]
  -
@@ -100,6 +101,7 @@ blockMix accumulatorBytes idx = do
     let r = blockSize cfg
     -- Fetch the block from the previous calculation
     let bytes = drop (128*r*idx) accumulatorBytes
+    -- Block count when intreprting bytes as split into 64 byte blocks
     let blockCount = 2*r
 
     when (length bytes /= 128*r) $ error $
@@ -113,18 +115,29 @@ blockMix accumulatorBytes idx = do
              [take (64*i) out     | i <- [0,2..blockCount-2]] ++
              [take (64*(i+1)) out | i <- [0,2..blockCount-1]])
 
+integerify :: [Word8] -> Int -> Int
+integerify bytes n = do
+    let idx = head $ word8toWord64ArrayLE (take 8 bytes)
+    fromIntegral $ mod idx (fromIntegral n)
 
 xorBlockMix :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
 xorBlockMix vs bytes _ = do
     cfg <- ask
+    let n = memoryCost cfg
     let r = blockSize cfg
-    let j = 1 -- TODO
+    -- Last block from V[]
+    let x = drop (length vs - 128*r) vs
+
+    -- The `j` index is the 64-bit representation of the first 8 bytes in `x`
+    -- modulo n to make it a valid index in V[]
+    let j = integerify x n
+
     let v = take (128*r) (drop (128*r*j) vs)
     blockMix (zipWith xor v bytes) 0
 
 
 {-
- -  Takes a 128*r byte array as input, indices.
+ -  Takes a 128*r byte array as input.
  -  Indices for B[] and V[] are based on 64 byte blocks.
  -  I.e. for r=8 there are 16 slots.
  -
@@ -152,7 +165,7 @@ romMix bytes = do
     when (length bytes /= 128*r) $ error $
         "Bad input length for romMix: " ++ show (length bytes) ++ " byte(s)"
 
-    -- V[]: flat array of (n-1) 128*r blocks
+    -- V[]: flat array of N blocks (each 128*r bytes)
     vs <- foldlM blockMix bytes [0..n-1]
 
     let x = drop (length vs - 128*r) vs

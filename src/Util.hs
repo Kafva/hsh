@@ -4,6 +4,7 @@ module Util (
     word8ArrayToHexString,
     word8toWord32ArrayLE,
     word8toWord32ArrayBE,
+    word8toWord64ArrayLE,
     word32ArrayToBlocks,
     word32ArrayToWord8ArrayLE,
     word32ArrayToWord8ArrayBE,
@@ -88,6 +89,20 @@ word8ArrayToWord32LE bytes =
          shiftL (fromIntegral $ bytes!!2) 16 .|.
          shiftL (fromIntegral $ bytes!!3) 24
 
+-- Convert an array of 8 bytes into a Little-endian 64-bit word
+word8ArrayToWord64LE :: [Word8] -> Word64
+word8ArrayToWord64LE bytes =
+    if length bytes /= 8
+    then 0
+    else fromIntegral (bytes!!0) .|.
+         shiftL (fromIntegral $ bytes!!1) 8 .|.
+         shiftL (fromIntegral $ bytes!!2) 16 .|.
+         shiftL (fromIntegral $ bytes!!3) 24 .|.
+         shiftL (fromIntegral $ bytes!!4) 32 .|.
+         shiftL (fromIntegral $ bytes!!5) 40 .|.
+         shiftL (fromIntegral $ bytes!!6) 48
+
+
 -- Convert an array of 4 bytes into a Big-endian 32-bit word
 --   [0x44 0x33 0x22 0x11] ---> 0x44332211
 word8ArrayToWord32BE :: [Word8] -> Word32
@@ -107,6 +122,15 @@ word8toWord32ArrayLE arr = do
     if mod (length arr) 4 /= 0
     then []
     else word8ArrayToWord32LE (take 4 arr) : word8toWord32ArrayLE (drop 4 arr)
+
+-- Split the given array of bytes into a list of 32 byte entries
+-- Returns an empty list if the list is not evenly divisible
+word8toWord64ArrayLE :: [Word8] -> [Word64]
+word8toWord64ArrayLE [] = []
+word8toWord64ArrayLE arr = do
+    if mod (length arr) 8 /= 0
+    then []
+    else word8ArrayToWord64LE (take 8 arr) : word8toWord64ArrayLE (drop 8 arr)
 
 word8toWord32ArrayBE :: [Word8] -> [Word32]
 word8toWord32ArrayBE [] = []
