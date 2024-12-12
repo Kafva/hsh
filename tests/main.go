@@ -104,6 +104,8 @@ func runScrypt(args []string) {
     }
 
     // runSalsa()
+    // intin := []uint32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+    // log.Printf("AAA: %+v\n", integerify(intin, 8, 1024));
 
     password, ok := loadFromFile(args[0])
     if !ok {
@@ -127,7 +129,7 @@ func runScrypt(args []string) {
         fmt.Printf("Error in scrypt: '%s'\n", err.Error())
         return
     }
-    dumpWordArray("output", dk)
+    //dumpWordArray("output", dk)
     writeResult(dk)
 }
 
@@ -258,6 +260,12 @@ func salsaXOR(tmp *[16]uint32, in, out []uint32) {
 	out[13], tmp[13] = x13, x13
 	out[14], tmp[14] = x14, x14
 	out[15], tmp[15] = x15, x15
+}
+
+func integerify(b []uint32, r int, N int) int {
+	j := (2*r - 1) * 16
+    x := uint64(b[j]) | uint64(b[j+1])<<32
+    return int(x & uint64(N-1))
 }
 
 func loadFromFile(path string) ([]byte, bool) {

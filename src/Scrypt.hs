@@ -187,6 +187,7 @@ romMix bytes = do
  -
  - SALSA20: http://cr.yp.to/snuffle/spec.pdf
  - SCRYPT: http://www.tarsnap.com/scrypt/scrypt.pdf
+ - https://raw.githubusercontent.com/viniciuschiele/Scrypt/refs/heads/master/src/Scrypt/ScryptEncoder.cs
  -}
 deriveKey :: [Word8] -> [Word8] -> Reader Config [Word8]
 deriveKey password salt = do
@@ -194,6 +195,11 @@ deriveKey password salt = do
     -- Salsa test:
     -- let salsaIn :: [Word32] = [0..15]
     -- salsaCore (word32ArrayToWord8ArrayLE salsaIn)
+
+    -- integerify test:
+    -- let x = integerify 1024
+    -- trace' "integerify: %d" x $ password
+
 
     let r = blockSize cfg
     let p = parallelisationParam cfg

@@ -30,7 +30,11 @@ SCRYPT_PBKDF2_ITERATIONS = 1
 HSH_ARGS += -k $(KEYFILE)
 HSH_ARGS += -l $(PBKDF2_DERIVED_KEY_LENGTH)
 HSH_ARGS += -H $(INNER_HASH_ALGORITHM)
-HSH_ARGS += -N $(SCRYPT_MEMORY_COST)
+
+HSH_SCRYPT_ARGS += -N $(SCRYPT_MEMORY_COST)
+HSH_SCRYPT_ARGS += -i $(SCRYPT_PBKDF2_ITERATIONS)
+HSH_SCRYPT_ARGS += -r $(SCRYPT_BLOCK_SIZE)
+HSH_SCRYPT_ARGS += -p $(SCRYPT_PARALLELISATION)
 
 ################################################################################
 
@@ -124,7 +128,7 @@ test-pbkdf2: build $(INPUTFILE) $(KEYFILE)
 			$(PBKDF2_DERIVED_KEY_LENGTH))
 
 test-scrypt: build $(INPUTFILE) $(KEYFILE)
-	$(call verify_alg,scrypt,-i $(SCRYPT_PBKDF2_ITERATIONS),,golang/x/crypto/scrypt,\
+	$(call verify_alg,scrypt,$(HSH_SCRYPT_ARGS),,golang/x/crypto/scrypt,\
 		tests/bin/scrypt -d $(KEYFILE) $(INPUTFILE) \
 			$(SCRYPT_MEMORY_COST) \
 			$(SCRYPT_BLOCK_SIZE) \
@@ -140,7 +144,7 @@ test: build $(INPUTFILE) $(KEYFILE)
 	$(call verify_ok,hmac,,$(shell tests/bin/hmac -H $(INNER_HASH_ALGORITHM) $(INPUTFILE) $(KEYFILE)))
 	$(call verify_ok,pbkdf2,-i $(PBKDF2_ITERATIONS),$(shell tests/bin/pbkdf2 -H $(INNER_HASH_ALGORITHM) $(KEYFILE) $(INPUTFILE) \
 		$(PBKDF2_ITERATIONS) $(PBKDF2_DERIVED_KEY_LENGTH)))
-	$(call verify_ok,scrypt,-i $(SCRYPT_PBKDF2_ITERATIONS),$(shell tests/bin/scrypt $(KEYFILE) $(INPUTFILE) \
+	$(call verify_ok,scrypt,$(HSH_SCRYPT_ARGS),$(shell tests/bin/scrypt $(KEYFILE) $(INPUTFILE) \
 		$(SCRYPT_MEMORY_COST) \
 		$(SCRYPT_BLOCK_SIZE) \
 		$(SCRYPT_PARALLELISATION) \

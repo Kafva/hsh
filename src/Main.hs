@@ -195,8 +195,12 @@ main = do
                             ((memoryCost opts .&. (memoryCost opts - 1)) == 0)) $ die
                         ("ERROR: N=" ++ show (memoryCost opts) ++ " must be a power of 2")
 
+                    let maxP = ((2^(32::Integer)-1) * 32) `div` (128 * blockSize opts)
+                    unless (maxP > parallelisationParam opts) $ die
+                        ("ERROR: p=" ++ show (parallelisationParam opts) ++ " too large")
+
                     let derivedKey = runReader (Scrypt.deriveKey key bytes) opts
-                    putStrLn $ word8ArrayToHexString derivedKey (2 * derivedKeyLength opts)
+                    putStrLn $ word8ArrayToHexString derivedKey (length derivedKey)
                 _ -> putStrLn $ "Invalid algorithm: " ++ algorithm opts
 
         alg ->
