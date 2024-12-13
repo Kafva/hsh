@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"hash"
+	"log"
 	"math/bits"
 	"os"
 	"path"
@@ -104,8 +105,15 @@ func runScrypt(args []string) {
     }
 
     // runSalsa()
-    // intin := []uint32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
-    // log.Printf("AAA: %+v\n", integerify(intin, 8, 1024));
+
+    // 4*64 = 256 bytes 
+    // * 8 (r) bytes per block
+    // = 2048 bytes
+    intin := make([]uint32, 64*8) 
+    for i := 0; i < len(intin); i++ {
+        intin[i] = uint32(i)
+    }
+    log.Printf("AAAAAAAA: %+v\n", integerify(intin, 8, 1024));
 
     password, ok := loadFromFile(args[0])
     if !ok {

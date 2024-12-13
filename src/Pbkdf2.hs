@@ -9,6 +9,7 @@ import Util (word32ToWord8ArrayBE)
 import Hmac
 import Control.Concurrent.MVar
 import Control.Concurrent
+import Control.Monad (forM, when)
 
 -- From the RFC: "In the case of PBKDF2, the "key" is thus the password and the
 -- "text" is the salt". I.e.

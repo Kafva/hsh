@@ -2,13 +2,14 @@ module Scrypt (Scrypt.deriveKey) where
 
 import Pbkdf2
 import Data.Array
-import Data.Binary (Word8, Word32)
+import Data.Binary (Word8, Word32, Word64)
 import Control.Monad.Reader
 import Data.Foldable (foldlM)
 import Types (Config(..))
 import Data.Bits ((.|.), xor, shiftL, shiftR)
 import Util (word8toWord32ArrayLE, word32ArrayToWord8ArrayLE, word8ArrayToHexArray, word8toWord64ArrayLE)
 import Log (trace')
+import Control.Monad (forM, when)
 
 salsaStep :: Array Int Int
 salsaStep = listArray (0,4) [7, 9, 13, 18]
@@ -117,8 +118,17 @@ blockMix accumulatorBytes idx = do
 
 integerify :: [Word8] -> Int -> Int
 integerify bytes n = do
-    let idx = head $ word8toWord64ArrayLE (take 8 bytes)
-    fromIntegral $ mod idx (fromIntegral n)
+    let value = head $ word8toWord64ArrayLE (take 8 bytes)
+    fromIntegral $ mod value (fromIntegral n)
+
+integerify32 :: [Word32] -> Int -> Int
+integerify32 bytes32 n = do
+    let j = (2*8 - 1) * 16
+    let value = (fromIntegral (bytes32!!j) :: Word64) .|.
+                (fromIntegral (bytes32!!(j+1)) :: Word64)
+    let x = value `shiftL` 32
+    fromIntegral $ mod x (fromIntegral n)
+
 
 xorBlockMix :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
 xorBlockMix vs bytes _ = do
@@ -197,21 +207,23 @@ deriveKey password salt = do
     -- salsaCore (word32ArrayToWord8ArrayLE salsaIn)
 
     -- integerify test:
-    -- let x = integerify 1024
-    -- trace' "integerify: %d" x $ password
+    let intin32 = [(i `mod` 255) :: Word32  | i <- [0..2048]]
+    let intin = word32ArrayToWord8ArrayLE intin32
+    let x = integerify32 intin32 1024
+    trace' "AAAAAAAAAA: %d" x $ password
 
 
-    let r = blockSize cfg
-    let p = parallelisationParam cfg
-    let outLen = p * 128 * r
+    -- let r = blockSize cfg
+    -- let p = parallelisationParam cfg
+    -- let outLen = p * 128 * r
 
-    -- Calculate a Pbkdf2 key for the provided password and salt
-    b <- Pbkdf2.deriveKey password salt outLen
+    -- -- Calculate a Pbkdf2 key for the provided password and salt
+    -- b <- Pbkdf2.deriveKey password salt outLen
 
-    -- Run romMix() over each 128*r bytes block of the derived key
-    bs <- forM [1..p] $ \i -> romMix (take (128 * r * i) b)
-    let b2 = concat bs
+    -- -- Run romMix() over each 128*r bytes block of the derived key
+    -- bs <- forM [1..p] $ \i -> romMix (take (128 * r * i) b)
+    -- let b2 = concat bs
 
-    -- New calculation of Pbkdf2 on the password but with b2 as the salt
-    Pbkdf2.deriveKey password b2 (derivedKeyLength cfg)
+    -- -- New calculation of Pbkdf2 on the password but with b2 as the salt
+    -- Pbkdf2.deriveKey password b2 (derivedKeyLength cfg)
 
