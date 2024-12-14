@@ -73,6 +73,11 @@ salsaCore bytes = do
     --     word32ArrayToWord8ArrayLE out
 
 
+{-
+ - bytes:   1024 byte array
+ - ys:      (64 * i) byte array    [i=0..2*r-1]
+ - return:  (64 * i) byte array    [i=0..2*r-1]
+ -}
 blockMixInner :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
 blockMixInner bytes ys i = do
     -- B[i]: current input block
@@ -88,10 +93,6 @@ blockMixInner bytes ys i = do
     -- return $ q2
 
 {-
- -
- -  bytes: The unmodified input B[] (128*r bytes)
- -  vs: A concatenation of 128*r byte arrays from other return values of blockMix
- -
  -  1. X = B[2 * r - 1]
  -
  -  2. for i = 0 to 2 * r - 1 do
@@ -101,6 +102,11 @@ blockMixInner bytes ys i = do
  -
  -  3. (Y[0], Y[2], ..., Y[2 * r - 2],
  -      Y[1], Y[3], ..., Y[2 * r - 1])
+ -
+ -
+ -  bytes:  1024 byte array
+ -  vs:     (1024 * i) byte array  [i=0..n-1]
+ -  return: (1024 * i) byte array
  -}
 blockMix :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
 blockMix bytes vs _ = do
@@ -141,15 +147,12 @@ xorBlockMix vs bytes _ = do
     -- Interpret the value at the last block as the next index to use
     let j = integerify (drop ((2*r - 1) * 64) x) n
 
-    v <- trace' "xorin[]=%s" (word8ArrayToHexArray vs 16) $ take (128*r) (drop (128*r*j) vs)
+    -- First 0..60 bytes in V[] are correct...
+    v <- trace' "xorin[]=%s" (word8ArrayToHexArray (drop (4*128) vs) 8) $ take (128*r) (drop (128*r*j) vs)
     blockMix (zipWith xor v bytes) [] 0
 
 
 {-
- -  Takes a 128*r (=1024) byte array as input.
- -  Indices for B[] and V[] are based on 64 byte blocks.
- -  I.e. for r=8 there are 16 slots.
- -
  -  1. X = B
  -
  -  2. for i = 0 to N - 1 do
@@ -165,6 +168,9 @@ xorBlockMix vs bytes _ = do
  -       X = scryptBlockMix (T)
  -
  -  4. B' = X
+ -
+ -  bytes: 1024 byte array
+ -  Divided into 16 (64 byte) slots
  -}
 romMix :: [Word8] -> Reader Config [Word8]
 romMix bytes = do
@@ -174,12 +180,12 @@ romMix bytes = do
     when (length bytes /= 128*r) $ error $
         "Bad input length for romMix: " ++ show (length bytes) ++ " byte(s)"
 
-    -- V[]: flat array of N blocks (each 128*r bytes)
+    -- V[]: (1024 * i) byte array  [i=0..n-1]
     -- XXX: V[0] = X
     --      V[1] = scryptBlockMix(V[1-1])
     --      V[2] = scryptBlockMix(V[2-1])
     --      ...
-    let v0 = take 64 bytes
+    let v0 = bytes
     vs <- foldlM (blockMix bytes) v0 [0..n-1]
 
     let x = drop (length vs - 128*r) vs
@@ -202,6 +208,10 @@ romMix bytes = do
  - SALSA20: http://cr.yp.to/snuffle/spec.pdf
  - SCRYPT: http://www.tarsnap.com/scrypt/scrypt.pdf
  - https://raw.githubusercontent.com/viniciuschiele/Scrypt/refs/heads/master/src/Scrypt/ScryptEncoder.cs
+ -
+ - password:  [any] byte array
+ - salt:      [any] byte array
+ - return:    [dkLen] byte array
  -}
 deriveKey :: [Word8] -> [Word8] -> Reader Config [Word8]
 deriveKey password salt = do
