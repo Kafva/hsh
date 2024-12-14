@@ -46,9 +46,8 @@ salsaRunRound bytes32 (_, i, j) = do
     return $ take i0 bytes32 ++ [b0] ++ drop (i0+1) bytes32
 
 {-
- - Salsa20/8 Core, hash function that maps a 64 byte input to a 64 byte output.
- - Equivalent to a Word32 array with 16 items.
- - Not collision resistant.
+ - bytes:  64 byte array
+ - return: 64 byte array
  -}
 salsaCore :: [Word8] -> Reader Config [Word8]
 salsaCore bytes = do
@@ -66,11 +65,12 @@ salsaCore bytes = do
     s <- foldlM salsaRunRound bytes32 tpl
     -- Final step, word-wise addition with the original value
     let out = zipWith (+) s bytes32
-    return $ word32ArrayToWord8ArrayLE out
+    --return $ word32ArrayToWord8ArrayLE out
 
-    -- trace' "[Salsa] out: %s" 
-    --     (word8ArrayToHexArray (word32ArrayToWord8ArrayLE out) 8) $
-    --     word32ArrayToWord8ArrayLE out
+    trace'' "[Salsa] in:%s\n               out: %s" 
+        (word8ArrayToHexArray bytes 4)
+        (word8ArrayToHexArray (word32ArrayToWord8ArrayLE out) 4) $
+        word32ArrayToWord8ArrayLE out
 
 
 {-
@@ -82,15 +82,20 @@ blockMixInner :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
 blockMixInner bytes ys i = do
     -- B[i]: current input block
     let b = take 64 (drop (i*64) bytes)
-    -- Y[i]: output block from previous calculation
-    let y = drop (length ys - 64) ys
-    let t = zipWith xor y b
+    -- X: Y[i] from previous iteration
+    let x = drop (length ys - 64) ys
+    let t = zipWith xor x b
     out <- salsaCore t
-    return $ ys ++ out
+    --return $ ys ++ out
 
-    -- q <- trace'' "in[%d]=%s" i (word8ArrayToHexArray b 8) $ ys ++ out
-    -- q2 <- trace'' "out[%d]=%s" i (word8ArrayToHexArray out 8) $ q
+    -- q2 <- trace'' "out[%d]=%s" i (word8ArrayToHexArray out 4) $ ys ++ out
     -- return $ q2
+
+
+    q <- trace'' "in[%d]=%s" i (word8ArrayToHexArray b 4) $ ys ++ out
+    q2 <- trace'' "t[%d]=%s" i (word8ArrayToHexArray t 4) $ q
+    q3 <- trace'' "x[%d]=%s" i (word8ArrayToHexArray x 4) $ q2
+    return $ q3
 
 {-
  -  1. X = B[2 * r - 1]
@@ -109,7 +114,7 @@ blockMixInner bytes ys i = do
  -  return: (1024 * i) byte array
  -}
 blockMix :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
-blockMix bytes vs _ = do
+blockMix bytes vs idx = do
     cfg <- ask
     let r = blockSize cfg
     -- Block count when intreprting bytes as split into 64 byte blocks
@@ -118,13 +123,20 @@ blockMix bytes vs _ = do
     when (length bytes /= 128*r) $ error $
         "Bad input length for blockMix: " ++ show (length bytes) ++ " byte(s)"
 
-    -- Initialise accumulator with the last block
-    let y0 = drop (64*(blockCount-1)) bytes
-    ys <- foldlM (blockMixInner bytes) y0 [0..blockCount-1]
+    let x = drop (64*(blockCount-1)) bytes
+    out <- foldlM (blockMixInner bytes) x [0..blockCount-1]
+    -- XXX: Exclude 'x' from the output
+    let ys = drop 64 out
 
-    return $ vs ++ concat (
-             [take (64*i) ys     | i <- [0,2..blockCount-2]] ++
-             [take (64*(i+1)) ys | i <- [0,2..blockCount-1]])
+    let ret = vs ++ concat (
+                [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
+                [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
+    --trace'' "blockMix[%d]=%s" idx (word8ArrayToHexArray (drop (length vs) ret) 4) $ ret
+    trace'' "blockMix[%d]=%s" idx (word8ArrayToHexArray ys 4) $ ret
+
+    -- return $ vs ++ concat (
+    --          [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
+    --          [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
 
 {-
  - omg... https://www.rfc-editor.org/errata/eid6452
@@ -147,8 +159,10 @@ xorBlockMix vs bytes _ = do
     -- Interpret the value at the last block as the next index to use
     let j = integerify (drop ((2*r - 1) * 64) x) n
 
-    -- First 0..60 bytes in V[] are correct...
-    v <- trace' "xorin[]=%s" (word8ArrayToHexArray (drop (4*128) vs) 8) $ take (128*r) (drop (128*r*j) vs)
+    -- First 0..1024 bytes in V[] are correct...
+    -- These are == to the input block
+    v <- trace' "V[1]=%s" (word8ArrayToHexArray (drop (4*300) vs) 8) $ 
+        take (128*r) (drop (128*r*j) vs)
     blockMix (zipWith xor v bytes) [] 0
 
 
@@ -170,7 +184,6 @@ xorBlockMix vs bytes _ = do
  -  4. B' = X
  -
  -  bytes: 1024 byte array
- -  Divided into 16 (64 byte) slots
  -}
 romMix :: [Word8] -> Reader Config [Word8]
 romMix bytes = do
@@ -180,6 +193,7 @@ romMix bytes = do
     when (length bytes /= 128*r) $ error $
         "Bad input length for romMix: " ++ show (length bytes) ++ " byte(s)"
 
+    -- 1-2.
     -- V[]: (1024 * i) byte array  [i=0..n-1]
     -- XXX: V[0] = X
     --      V[1] = scryptBlockMix(V[1-1])
@@ -188,6 +202,7 @@ romMix bytes = do
     let v0 = bytes
     vs <- foldlM (blockMix bytes) v0 [0..n-1]
 
+    -- 3-4.
     let x = drop (length vs - 128*r) vs
     foldlM (xorBlockMix vs) x [0..n-1]
 
