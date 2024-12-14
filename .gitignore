@@ -56,3 +56,4 @@ peda-session*
 *.diff
 *.rej
 .build
+.dlvinit

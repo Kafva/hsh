@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"hash"
-	"log"
 	"math/bits"
 	"os"
 	"path"
@@ -109,11 +108,12 @@ func runScrypt(args []string) {
     // 4*64 = 256 bytes 
     // * 8 (r) bytes per block
     // = 2048 bytes
-    intin := make([]uint32, 64*8) 
-    for i := 0; i < len(intin); i++ {
-        intin[i] = uint32(i)
-    }
-    log.Printf("AAAAAAAA: %+v\n", integerify(intin, 8, 1024));
+    // intin := make([]uint32, 64*8) 
+    // for i := 0; i < len(intin); i++ {
+    //     intin[i] = uint32(i)
+    // }
+    // dumpWord32Array("intin", intin)
+    // log.Printf("INTEGERIFY: %+v\n", integerify(intin, 8, 1024));
 
     password, ok := loadFromFile(args[0])
     if !ok {
