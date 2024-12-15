@@ -31,6 +31,5 @@ calculate bytes key = do
     let innerDigest = runReader (hashFunction $ innerKey ++ bytes) cfg
     let outerDigest = runReader (hashFunction $ outerKey ++ innerDigest) cfg
 
-    -- let hashLen = innerAlgorithmLength cfg
-    -- trace' "[Hmac] output: %s" (word8ArrayToHexArray outerDigest hashLen) outerDigest
-    return outerDigest
+    let hashLen = innerAlgorithmLength cfg
+    trace' "[Hmac] output: %s" (word8ArrayToHexArray outerDigest hashLen) outerDigest

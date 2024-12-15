@@ -11,11 +11,10 @@ import Data.Bits ((.&.), complement, xor, rotateR, shiftR)
 import Log (trace', trace'')
 import Types (Config, Block, Sha256Digest, Sha256ArrayW, HashSignature)
 import Util (padSha1Input,
-             word8ArrayToHexArray,
              word8toWord32ArrayBE,
              word32ArrayToBlocks,
              word32ArrayToWord8ArrayBE,
-             showDigestArray)
+             word8ArrayToHexArray)
 import Template (sha256Table, sha256InitialDigest)
 
 -- CH( x, y, z) = (x AND y) XOR ( (NOT x) AND z)
@@ -87,8 +86,7 @@ processW digest t w = do
                      e,
                      f,
                      g]
-    --trace'' "[Sha256] t=%d %s" t (show newDigest) newDigest
-    return newDigest
+    trace'' "[Sha256] t=%d %s" t (show newDigest) newDigest
 
 
 -- Wt = SSIG1(W(t-2)) + W(t-7) + SSIG0(w(t-15)) + W(t-16)
@@ -137,9 +135,8 @@ hash :: [Word8] -> Int -> Reader Config [Word8]
 hash bytes digestLength = do
     -- * Pad the input (identical approach to SHA1)
     let paddedBytes = padSha1Input bytes
-    let blocks :: [Block] = word32ArrayToBlocks $ word8toWord32ArrayBE paddedBytes
-    -- blocks :: [Block] <- trace' "[Sha256] input: %s" (word8ArrayToHexArray paddedBytes 64)
-    --                      (word32ArrayToBlocks $ word8toWord32ArrayBE paddedBytes)
+    blocks :: [Block] <- trace' "[Sha256] input: %s" (word8ArrayToHexArray paddedBytes 64)
+                         (word32ArrayToBlocks $ word8toWord32ArrayBE paddedBytes)
 
     let digest :: Sha256Digest = if digestLength == 32
                                  then $(sha256InitialDigest)
@@ -155,8 +152,6 @@ hash bytes digestLength = do
     processedDigest <- foldlM processBlock digest blocks
     let finalDigest = take (div digestLength 4) processedDigest
 
-    -- trace' "[Sha256] output: %s" (showDigestArray finalDigest digestLength) $
-    --     word32ArrayToWord8ArrayBE finalDigest
     return $ word32ArrayToWord8ArrayBE finalDigest
 
 hash224 :: HashSignature

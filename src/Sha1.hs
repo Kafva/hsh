@@ -104,6 +104,4 @@ hash bytes = do
     -- * Process each block
     finalDigest <- foldlM processBlock digest blocks
 
-    trace' "[Sha1] output: %s" (showDigestArray finalDigest 20) $
-        word32ArrayToWord8ArrayBE finalDigest
-
+    return $ word32ArrayToWord8ArrayBE finalDigest

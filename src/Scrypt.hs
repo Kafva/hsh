@@ -7,9 +7,7 @@ import Control.Monad.Reader
 import Data.Foldable (foldlM)
 import Types (Config(..))
 import Data.Bits ((.|.), xor, shiftL, shiftR)
-import Util (word8toWord32ArrayLE, word32ArrayToWord8ArrayLE, word8ArrayToHexArray, word8toWord64ArrayLE)
-import Log (trace', trace'')
-import Control.Monad (forM, when)
+import Util (word8toWord32ArrayLE, word32ArrayToWord8ArrayLE)
 
 salsaStep :: Array Int Int
 salsaStep = listArray (0,4) [7, 9, 13, 18]
@@ -66,11 +64,6 @@ salsaCore bytes
         let out = zipWith (+) s bytes32
         return $ word32ArrayToWord8ArrayLE out
 
-        -- trace'' "[Salsa] in:%s\n               out: %s"
-        --     (word8ArrayToHexArray bytes 4)
-        --     (word8ArrayToHexArray (word32ArrayToWord8ArrayLE out) 4) $
-        --     word32ArrayToWord8ArrayLE out
-
 
 {-
  - bytes:   1024 byte array
@@ -86,15 +79,6 @@ blockMixInner bytes ys i = do
     let t = zipWith xor x b
     out <- salsaCore t
     return $ ys ++ out
-
-    -- q2 <- trace'' "out[%d]=%s" i (word8ArrayToHexArray out 4) $ ys ++ out
-    -- return $ q2
-
-
-    -- q <- trace'' "in[%d]=%s" i (word8ArrayToHexArray b 4) $ ys ++ out
-    -- q2 <- trace'' "t[%d]=%s" i (word8ArrayToHexArray t 4) $ q
-    -- q3 <- trace'' "x[%d]=%s" i (word8ArrayToHexArray x 4) $ q2
-    -- return $ q3
 
 {-
  -  1. X = B[2 * r - 1]
@@ -112,30 +96,19 @@ blockMixInner bytes ys i = do
  -  return: (1024 * i) byte array
  -}
 blockMix :: [Word8] -> Int -> Reader Config [Word8]
-blockMix vs idx
-    -- TODO: hardcoded r
-    | length vs `mod` 128*8 /= 0 = error $ "[blockMix] Bad input size: " ++ show (length vs)
-    | otherwise = do
-        cfg <- ask
-        let r = blockSize cfg
-        -- Block count when intreprting bytes as split into 64 byte blocks
-        let blockCount = 2*r
+blockMix vs _ = do
+    cfg <- ask
+    let r = blockSize cfg
+    -- Each blockMix call uses the result from the last call as B[]
+    let bytes = drop (length vs - 128*r) vs
+    let x = drop (64*(2*r-1)) bytes
+    out <- foldlM (blockMixInner bytes) x [0..2*r-1]
+    -- XXX: Exclude the starting value of 'x' from the output
+    let ys = drop 64 out
 
-        -- Each blockMix call uses the result from the last call as B[]
-        let bytes = drop (length vs - 128*r) vs
-        let x = drop (64*(blockCount-1)) bytes
-        out <- foldlM (blockMixInner bytes) x [0..blockCount-1]
-        -- XXX: Exclude the starting value of 'x' from the output
-        let ys = drop 64 out
-
-        -- let ret = vs ++ concat (
-        --              [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
-        --              [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
-        -- trace'' "blockMix[%d]=%s" idx (word8ArrayToHexArray ys 4) $ ret
-
-        return $ vs ++ concat (
-                 [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
-                 [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
+    return $ vs ++ concat (
+             [take 64 (drop (64*i)     ys) | i <- [0,2..2*r-2]] ++
+             [take 64 (drop (64*(i+1)) ys) | i <- [0,2..2*r-1]])
 
 {-
  - Not obvious that this is what you need to do from the RFC description...
@@ -151,50 +124,22 @@ integerify bytes n
         fromIntegral $ b3 `mod` fromIntegral n
 
 
-
 xorBlockMix :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
-xorBlockMix vs x i
-    | length vs `mod` 128*8 /= 0 = error $
-                                  "[xorBlockMix] Bad input size(vs): " ++ show (length vs)
-    | length x /= 128*8 = error $ "[xorBlockMix] Bad input size(x): " ++ show (length x)
-    -- TMP
-    -- | head (take 1 (drop (100*4) vs)) /= (0xd1::Word8) = error "Bad V[100]"
-    -- | head (take 1 (drop (255*4) vs)) /= (0x67::Word8) = error "Bad V[255]"
-    -- | head (take 1 (drop (400*4) vs)) /= (0x7b::Word8) = error "Bad V[400]"
-    -- | head (take 1 (drop (511*4) vs)) /= (0xcb::Word8) = error "Bad V[511]"
-    -- | i==0 && head (take 1 (drop (0*4) x)) /= (0xe9::Word8) = error "Bad X[0]"
-    -- | i==0 && head (take 1 (drop (1*4) x)) /= (0x5a::Word8) = error "Bad X[1]"
-    | otherwise = do
-        cfg <- ask
-        let n = memoryCost cfg
-        let r = blockSize cfg
+xorBlockMix vs x _ = do
+    cfg <- ask
+    let n = memoryCost cfg
+    let r = blockSize cfg
+    -- The next index from V[] to use is based of the 64-bit integer
+    -- interpretation of the first 8 bytes in the last (64 byte) block of X.
+    let jj = take 8 (drop ((2*r -1)*16*4) x)
+    let j = integerify jj  n
 
-        -- The next index from V[] to use is based of the 64-bit integer
-        -- interpretion of the first 8 bytes in the last (64 byte) block of X.
-        let jj = take 8 (drop ((2*r -1)*16*4) x)
-        --let j = integerify jj  n
-        j <- trace'' "b[j]= %s\nret mod 10024= %d" (word8ArrayToHexArray jj 8) (integerify jj 10024) $ integerify jj n
+    let v = take (128*r) (drop (128*r*j) vs)
+    let t = zipWith xor x v
 
-
-        -- let i1 = take 8 (drop (240*4) x)
-        -- let jj = integerify i1 1024
-        -- j <- trace' "jj: %d" jj  $ jj `mod` n
-        --j <- trace' "jj: %d" (length i1) $ jj `mod` n
-        --let j = i -- XXX TMP
-
-        let v = take (128*r) (drop (128*r*j) vs)
-        let t = zipWith xor x v
-
-
-        --t2 <- trace'' "j=%d X=%s" j ((word8ArrayToHexArray (drop 0 x) 4))  $ t
-        -- OK: V[0..2043]
-        --t2 <- trace' "T[]=%s" ((word8ArrayToHexArray (drop (0*4) t) 4))  $ t
-        --t2 <- trace' "V[]=%s" ((word8ArrayToHexArray (drop (0*4) vs) 4))  $ t
-        --t2 <- trace'' "j=%d XXX=%d" j (length vs)  $ t
-
-        out <- blockMix t 0
-        -- Only return the new X value
-        return $ drop (length out - 128*r) out
+    out <- blockMix t 0
+    -- Only return the new X value
+    return $ drop (length out - 128*r) out
 
 
 {-
@@ -217,29 +162,26 @@ xorBlockMix vs x i
  -  bytes: 1024 byte array
  -}
 romMix :: [Word8] -> Reader Config [Word8]
-romMix bytes
-    | length bytes /= 128*8 = error $ "[romMix] Bad input size: " ++ show (length bytes)
-    | otherwise = do
-        cfg <- ask
-        let r = blockSize cfg
-        let n = memoryCost cfg
+romMix bytes = do
+    cfg <- ask
+    let r = blockSize cfg
+    let n = memoryCost cfg
 
-        -- 1-2.
-        --
-        -- N=2
-        -- XXX: V[0] = X
-        --      V[1] = scryptBlockMix(V[0])
-        --      X = scryptBlockMix(V[1])
-        --
-        -- Note: the final output block from scryptBlockMix is not part of V[]
-        -- but it is used in step 3!
-        let v0 = bytes
-        out <- foldlM blockMix v0 [0..n-1]
+    -- Step 1-2
+    -- For N=2:
+    --   V[0] = X
+    --   V[1] = scryptBlockMix(V[0])
+    --   X = scryptBlockMix(V[1])
+    --
+    -- Note: the final output block from scryptBlockMix is not part of V[]
+    -- but it is used in step 3!
+    let v0 = bytes
+    out <- foldlM blockMix v0 [0..n-1]
 
-        -- 3-4.
-        let vs = take (128*r*n) out
-        let x = drop (128*r*n) out
-        foldlM (xorBlockMix vs) x [0..n-1]
+    -- Step 3-4
+    let vs = take (128*r*n) out
+    let x = drop (128*r*n) out
+    foldlM (xorBlockMix vs) x [0..n-1]
 
 {-
  -
@@ -270,15 +212,6 @@ deriveKey password salt = do
     -- let salsaIn :: [Word32] = [0..15]
     -- salsaCore (word32ArrayToWord8ArrayLE salsaIn)
 
-    -- integerify test:
-    --let intin32 = [(i `mod` 255) :: Word32  | i <- [0..2048]]
-    --let intin = word32ArrayToWord8ArrayLE intin32
-    --let x = integerify (drop ((2*8 - 1) * 64) intin) 1024
-    ----let x = integerify32 intin32 8 1024
-    --trace'' "INTEGERIFY: %d\n%s" x (word8ArrayToHexArray intin 64) $ password
-
-
-    -- dlv exec tests/bin/scrypt -- -d .testenv/key.dat .testenv/input.dat 8 8 1 64
     let r = blockSize cfg
     let p = parallelisationParam cfg
     let outLen = p * 128 * r
@@ -287,9 +220,7 @@ deriveKey password salt = do
     b <- Pbkdf2.deriveKey password salt outLen
 
     -- Run romMix() over each 128*r bytes block of the derived key
-    --bs <- forM [1..p] $ \i -> romMix (take (128 * r * i) b)
-    --let b2 = concat bs
-    b2 <- romMix (take (128 * r) b)
+    bs <- forM [1..p] $ \i -> romMix (take (128 * r * i) b)
 
     -- New calculation of Pbkdf2 on the password but with b2 as the salt
-    Pbkdf2.deriveKey password b2 (derivedKeyLength cfg)
+    Pbkdf2.deriveKey password (concat bs) (derivedKeyLength cfg)
