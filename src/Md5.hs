@@ -7,7 +7,7 @@ import Template (md5Table)
 import Data.Bits ((.&.), (.|.), complement, xor, rotateL)
 import Data.Binary (Word32)
 import Log (trace', trace'')
-import Data.Foldable (foldlM, foldl')
+import Data.Foldable (foldlM)
 import Types (Config, Block, Md5Digest, HashSignature)
 import Util (word8ArrayToHexArray,
              word8toWord32ArrayLE,

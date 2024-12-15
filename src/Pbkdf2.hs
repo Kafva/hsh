@@ -9,7 +9,7 @@ import Util (word32ToWord8ArrayBE)
 import Hmac
 import Control.Concurrent.MVar
 import Control.Concurrent
-import Control.Monad (forM, when)
+import Control.Monad (forM)
 
 -- From the RFC: "In the case of PBKDF2, the "key" is thus the password and the
 -- "text" is the salt". I.e.
@@ -34,7 +34,7 @@ calculateU password accumulator i iterations
     | i == iterations + 1 = return (concat (reverse accumulator))
     | otherwise = do
         -- Pick out the block from the previous iteration from the accumulator
-        currentU <- prf password (head accumulator)
+        currentU <- prf password (accumulator!!0)
         -- Note: we prepend the latest U to the accumulator (so that we can use `head`),
         -- the final return value needs to be blockwise reversed with this approach!
         calculateU password (currentU : accumulator) (i+1) iterations

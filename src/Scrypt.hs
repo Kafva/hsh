@@ -8,6 +8,7 @@ import Data.Foldable (foldlM)
 import Types (Config(..))
 import Data.Bits ((.|.), xor, shiftL, shiftR)
 import Util (word8toWord32ArrayLE, word32ArrayToWord8ArrayLE)
+import Control.Monad (forM)
 
 salsaStep :: Array Int Int
 salsaStep = listArray (0,4) [7, 9, 13, 18]
@@ -119,8 +120,8 @@ integerify :: [Word8] -> Int -> Int
 integerify bytes n
     | length bytes /= 8 = error $ "[integerify] Bad input size: " ++ show (length bytes)
     | otherwise = do
-        let b1 :: Word64 = fromIntegral $ head $ word8toWord32ArrayLE (take 4 bytes)
-        let b2 :: Word64 = fromIntegral $ head $ word8toWord32ArrayLE (drop 4 bytes)
+        let b1 :: Word64 = fromIntegral $ (word8toWord32ArrayLE (take 4 bytes))!!0
+        let b2 :: Word64 = fromIntegral $ (word8toWord32ArrayLE (drop 4 bytes))!!0
         let b3 :: Word64 = b1 .|. (b2 `shiftL` 32)
         fromIntegral $ b3 `mod` fromIntegral n
 

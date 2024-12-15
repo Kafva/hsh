@@ -5,7 +5,7 @@
 module Sha256 (hash224, hash256) where
 
 import Control.Monad.Reader
-import Data.Foldable (foldl', foldlM)
+import Data.Foldable (foldlM)
 import Data.Binary (Word8, Word32)
 import Data.Bits ((.&.), complement, xor, rotateR, shiftR)
 import Log (trace', trace'')
