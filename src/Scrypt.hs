@@ -112,7 +112,7 @@ blockMixInner bytes ys i = do
  -  return: (1024 * i) byte array
  -}
 blockMix :: [Word8] -> Int -> Reader Config [Word8]
-blockMix vs _
+blockMix vs idx
     -- TODO: hardcoded r
     | length vs `mod` 128*8 /= 0 = error $ "[blockMix] Bad input size: " ++ show (length vs)
     | otherwise = do
@@ -128,15 +128,14 @@ blockMix vs _
         -- XXX: Exclude the starting value of 'x' from the output
         let ys = drop 64 out
 
-        -- let ret = vs ++ concat (
-        --             [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
-        --             [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
-        --trace'' "blockMix[%d]=%s" idx (word8ArrayToHexArray (drop (length vs) ret) 4) $ ret
-        --trace'' "blockMix[%d]=%s" idx (word8ArrayToHexArray ys 4) $ ret
+        let ret = vs ++ concat (
+                     [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
+                     [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
+        trace'' "blockMix[%d]=%s" idx (word8ArrayToHexArray ys 4) $ ret
 
-        return $ vs ++ concat (
-                 [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
-                 [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
+        -- return $ vs ++ concat (
+        --          [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
+        --          [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
 
 {-
  - The RFC description of this is pretty meh...
@@ -157,10 +156,11 @@ xorBlockMix vs x i
     | length x /= 128*8 = error $ "[xorBlockMix] Bad input size(x): " ++ show (length x)
     -- TMP
     | head (take 1 (drop (100*4) vs)) /= (0xd1::Word8) = error "Bad V[100]"
-    -- TMP
     | head (take 1 (drop (255*4) vs)) /= (0x67::Word8) = error "Bad V[255]"
-    -- TMP
-    | i==0 && head (take 1 (drop (0*4) x)) /= (0xe1::Word8) = error "Bad X[0]"
+    | head (take 1 (drop (400*4) vs)) /= (0x7b::Word8) = error "Bad V[400]"
+    | head (take 1 (drop (511*4) vs)) /= (0xcb::Word8) = error "Bad V[511]"
+    -- | i==0 && head (take 1 (drop (0*4) x)) /= (0xe9::Word8) = error "Bad X[0]"
+    -- | i==0 && head (take 1 (drop (1*4) x)) /= (0x5a::Word8) = error "Bad X[1]"
     | otherwise = do
         cfg <- ask
         let n = memoryCost cfg
@@ -169,13 +169,18 @@ xorBlockMix vs x i
         --let jj = integerify i1 1024
         --j <- trace' "jj: %s" (word8ArrayToHexArray i1 8) $ jj `mod` n
         --j <- trace' "jj: %d" (length i1) $ jj `mod` n
-        let j = 0
+        let j = i -- XXX TMP
 
         let v = take (128*r) (drop (128*r*j) vs)
         let t = zipWith xor x v
+
+        -- The values inside x[] in the go implementation have already been
+        -- xor:ed when we inspect them!
+
+
         --t2 <- trace'' "j=%d X=%s" j ((word8ArrayToHexArray (drop 0 x) 4))  $ t
         -- OK: V[0..2043]
-        t2 <- trace' "X[]=%s" ((word8ArrayToHexArray (drop (0*4) x) 4))  $ t
+        t2 <- trace' "T[]=%s" ((word8ArrayToHexArray (drop (0*4) t) 4))  $ t
         --t2 <- trace' "V[]=%s" ((word8ArrayToHexArray (drop (0*4) vs) 4))  $ t
         --t2 <- trace'' "j=%d XXX=%d" j (length vs)  $ t
 
