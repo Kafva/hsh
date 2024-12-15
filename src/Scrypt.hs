@@ -128,63 +128,71 @@ blockMix vs idx
         -- XXX: Exclude the starting value of 'x' from the output
         let ys = drop 64 out
 
-        let ret = vs ++ concat (
-                     [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
-                     [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
-        trace'' "blockMix[%d]=%s" idx (word8ArrayToHexArray ys 4) $ ret
+        -- let ret = vs ++ concat (
+        --              [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
+        --              [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
+        -- trace'' "blockMix[%d]=%s" idx (word8ArrayToHexArray ys 4) $ ret
 
-        -- return $ vs ++ concat (
-        --          [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
-        --          [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
+        return $ vs ++ concat (
+                 [take 64 (drop (64*i)     ys) | i <- [0,2..blockCount-2]] ++
+                 [take 64 (drop (64*(i+1)) ys) | i <- [0,2..blockCount-1]])
 
 {-
- - The RFC description of this is pretty meh...
+ - Not obvious that this is what you need to do from the RFC description...
  - https://www.rfc-editor.org/errata/eid6452
  -}
 integerify :: [Word8] -> Int -> Int
-integerify bytes n = do
-    let b1 :: Word64 = fromIntegral $ head $ word8toWord32ArrayLE (take 4 bytes)
-    let b2 :: Word64 = fromIntegral $ head $ word8toWord32ArrayLE (drop 4 bytes)
-    let b3 :: Word64 = b1 .|. (b2 `shiftL` 32)
-    fromIntegral $ b3 `mod` fromIntegral n
+integerify bytes n
+    | length bytes /= 8 = error $ "[integerify] Bad input size: " ++ show (length bytes)
+    | otherwise = do
+        let b1 :: Word64 = fromIntegral $ head $ word8toWord32ArrayLE (take 4 bytes)
+        let b2 :: Word64 = fromIntegral $ head $ word8toWord32ArrayLE (drop 4 bytes)
+        let b3 :: Word64 = b1 .|. (b2 `shiftL` 32)
+        fromIntegral $ b3 `mod` fromIntegral n
 
 
 
 xorBlockMix :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
 xorBlockMix vs x i
-    | length vs /= 128*8*2 = error $ "[xorBlockMix] Bad input size(vs): " ++ show (length vs)
+    | length vs `mod` 128*8 /= 0 = error $
+                                  "[xorBlockMix] Bad input size(vs): " ++ show (length vs)
     | length x /= 128*8 = error $ "[xorBlockMix] Bad input size(x): " ++ show (length x)
     -- TMP
-    | head (take 1 (drop (100*4) vs)) /= (0xd1::Word8) = error "Bad V[100]"
-    | head (take 1 (drop (255*4) vs)) /= (0x67::Word8) = error "Bad V[255]"
-    | head (take 1 (drop (400*4) vs)) /= (0x7b::Word8) = error "Bad V[400]"
-    | head (take 1 (drop (511*4) vs)) /= (0xcb::Word8) = error "Bad V[511]"
+    -- | head (take 1 (drop (100*4) vs)) /= (0xd1::Word8) = error "Bad V[100]"
+    -- | head (take 1 (drop (255*4) vs)) /= (0x67::Word8) = error "Bad V[255]"
+    -- | head (take 1 (drop (400*4) vs)) /= (0x7b::Word8) = error "Bad V[400]"
+    -- | head (take 1 (drop (511*4) vs)) /= (0xcb::Word8) = error "Bad V[511]"
     -- | i==0 && head (take 1 (drop (0*4) x)) /= (0xe9::Word8) = error "Bad X[0]"
     -- | i==0 && head (take 1 (drop (1*4) x)) /= (0x5a::Word8) = error "Bad X[1]"
     | otherwise = do
         cfg <- ask
         let n = memoryCost cfg
         let r = blockSize cfg
-        --let i1 = take 8 (drop (240*4) x)
-        --let jj = integerify i1 1024
-        --j <- trace' "jj: %s" (word8ArrayToHexArray i1 8) $ jj `mod` n
+
+        -- The next index from V[] to use is based of the 64-bit integer
+        -- interpretion of the first 8 bytes in the last (64 byte) block of X.
+        let jj = take 8 (drop ((2*r -1)*16*4) x)
+        --let j = integerify jj  n
+        j <- trace'' "b[j]= %s\nret mod 10024= %d" (word8ArrayToHexArray jj 8) (integerify jj 10024) $ integerify jj n
+
+
+        -- let i1 = take 8 (drop (240*4) x)
+        -- let jj = integerify i1 1024
+        -- j <- trace' "jj: %d" jj  $ jj `mod` n
         --j <- trace' "jj: %d" (length i1) $ jj `mod` n
-        let j = i -- XXX TMP
+        --let j = i -- XXX TMP
 
         let v = take (128*r) (drop (128*r*j) vs)
         let t = zipWith xor x v
 
-        -- The values inside x[] in the go implementation have already been
-        -- xor:ed when we inspect them!
-
 
         --t2 <- trace'' "j=%d X=%s" j ((word8ArrayToHexArray (drop 0 x) 4))  $ t
         -- OK: V[0..2043]
-        t2 <- trace' "T[]=%s" ((word8ArrayToHexArray (drop (0*4) t) 4))  $ t
+        --t2 <- trace' "T[]=%s" ((word8ArrayToHexArray (drop (0*4) t) 4))  $ t
         --t2 <- trace' "V[]=%s" ((word8ArrayToHexArray (drop (0*4) vs) 4))  $ t
         --t2 <- trace'' "j=%d XXX=%d" j (length vs)  $ t
 
-        out <- blockMix t2 0
+        out <- blockMix t 0
         -- Only return the new X value
         return $ drop (length out - 128*r) out
 
