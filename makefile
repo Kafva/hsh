@@ -19,7 +19,9 @@ INNER_HASH_ALGORITHM ?= sha256
 PBKDF2_ITERATIONS ?= 512
 
 # Memory cost parameter for scrypt (N)
-SCRYPT_MEMORY_COST ?= 8 # 32768
+# Recommended value for N in a real use case is 2^15.
+# 2^11 takes ~1h to run
+SCRYPT_MEMORY_COST ?= $(shell echo "$$((2**8))")
 # Parallelisation parameter for scrypt (p)
 SCRYPT_PARALLELISATION ?= 1
 # Block size for scrypt (r)

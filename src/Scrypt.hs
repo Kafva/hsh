@@ -68,6 +68,7 @@ salsaCore bytes
 {-
  - bytes:   1024 byte array
  - ys:      (64 * i) byte array    [i=0..2*r-1]
+ - i:       64-byte based index inside `bytes`
  - return:  (64 * i) byte array    [i=0..2*r-1]
  -}
 blockMixInner :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
@@ -170,11 +171,11 @@ romMix bytes = do
     -- Step 1-2
     -- For N=2:
     --   V[0] = X
-    --   V[1] = scryptBlockMix(V[0])
-    --   X = scryptBlockMix(V[1])
+    --   V[1] = blockMix(V[0])
+    --   X    = blockMix(V[1])
     --
-    -- Note: the final output block from scryptBlockMix is not part of V[]
-    -- but it is used in step 3!
+    -- Note: the final output block from blockMix is not part of V[]
+    -- but it is used in step 3-4.
     let v0 = bytes
     out <- foldlM blockMix v0 [0..n-1]
 
@@ -208,9 +209,6 @@ romMix bytes = do
 deriveKey :: [Word8] -> [Word8] -> Reader Config [Word8]
 deriveKey password salt = do
     cfg <- ask
-    -- Salsa test:
-    -- let salsaIn :: [Word32] = [0..15]
-    -- salsaCore (word32ArrayToWord8ArrayLE salsaIn)
 
     let r = blockSize cfg
     let p = parallelisationParam cfg

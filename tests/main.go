@@ -103,18 +103,6 @@ func runScrypt(args []string) {
         os.Exit(1)
     }
 
-    // runSalsa()
-
-    // 4*64 = 256 bytes 
-    // * 8 (r) bytes per block
-    // = 2048 bytes
-    // intin := make([]uint32, 64*8) 
-    // for i := 0; i < len(intin); i++ {
-    //     intin[i] = uint32(i)
-    // }
-    // dumpWord32Array("intin", intin)
-    // log.Printf("INTEGERIFY: %+v\n", integerify(intin, 8, 1024));
-
     password, ok := loadFromFile(args[0])
     if !ok {
         return
@@ -268,12 +256,6 @@ func salsaXOR(tmp *[16]uint32, in, out []uint32) {
 	out[13], tmp[13] = x13, x13
 	out[14], tmp[14] = x14, x14
 	out[15], tmp[15] = x15, x15
-}
-
-func integerify(b []uint32, r int, N int) int {
-	j := (2*r - 1) * 16
-    x := uint64(b[j]) | uint64(b[j+1])<<32
-    return int(x & uint64(N-1))
 }
 
 func loadFromFile(path string) ([]byte, bool) {

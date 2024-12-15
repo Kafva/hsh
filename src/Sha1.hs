@@ -11,8 +11,7 @@ import Util (padSha1Input,
              word8ArrayToHexArray,
              word8toWord32ArrayBE,
              word32ArrayToBlocks,
-             word32ArrayToWord8ArrayBE,
-             showDigestArray)
+             word32ArrayToWord8ArrayBE)
 
 f :: Int -> Word32 -> Word32 -> Word32 -> Word32
 f t b c d
