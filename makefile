@@ -21,7 +21,7 @@ PBKDF2_ITERATIONS ?= 512
 # Memory cost parameter for scrypt (N)
 # Recommended value for N in a real use case is 2^15.
 # 2^11 takes ~1h to run
-SCRYPT_MEMORY_COST ?= $(shell echo "$$((2**8))")
+SCRYPT_MEMORY_COST ?= $(shell echo "2^8" | bc)
 # Parallelisation parameter for scrypt (p)
 SCRYPT_PARALLELISATION ?= 1
 # Block size for scrypt (r)
@@ -153,6 +153,11 @@ test: build $(INPUTFILE) $(KEYFILE)
 		$(SCRYPT_DERIVED_KEY_LENGTH)))
 
 reset-profile:
+	@# Die gracefully if bc is missing
+	@if ! which bc 2> /dev/null > /dev/null; then \
+		echo "command not found: bc"; \
+		exit 1; \
+	fi
 	rm -f *.prof 2> /dev/null
 	@# Compile time template functions do not build with profiling enabled
 	rm -f cabal.project.local
