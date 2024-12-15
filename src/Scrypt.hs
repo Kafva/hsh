@@ -108,20 +108,21 @@ blockMixInner bytes ys i = do
  -      Y[1], Y[3], ..., Y[2 * r - 1])
  -
  -
- -  bytes:  1024 byte array
  -  vs:     (1024 * i) byte array  [i=0..n-1]
  -  return: (1024 * i) byte array
  -}
-blockMix :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
-blockMix bytes vs _
+blockMix :: [Word8] -> Int -> Reader Config [Word8]
+blockMix vs _
     -- TODO: hardcoded r
-    | length bytes /= 128*8 = error $ "[blockMix] Bad input size: " ++ show (length bytes)
+    | length vs `mod` 128*8 /= 0 = error $ "[blockMix] Bad input size: " ++ show (length vs)
     | otherwise = do
         cfg <- ask
         let r = blockSize cfg
         -- Block count when intreprting bytes as split into 64 byte blocks
         let blockCount = 2*r
 
+        -- Each blockMix call uses the result from the last call as B[]
+        let bytes = drop (length vs - 128*r) vs
         let x = drop (64*(blockCount-1)) bytes
         out <- foldlM (blockMixInner bytes) x [0..blockCount-1]
         -- XXX: Exclude the starting value of 'x' from the output
@@ -151,26 +152,36 @@ integerify bytes n = do
 
 
 xorBlockMix :: [Word8] -> [Word8] -> Int -> Reader Config [Word8]
-xorBlockMix vs x _
-    | length vs /= 128*8*(2+1) = error $ "[xorBlockMix] Bad input size: " ++ show (length vs)
+xorBlockMix vs x i
+    | length vs /= 128*8*2 = error $ "[xorBlockMix] Bad input size(vs): " ++ show (length vs)
+    | length x /= 128*8 = error $ "[xorBlockMix] Bad input size(x): " ++ show (length x)
+    -- TMP
+    | head (take 1 (drop (100*4) vs)) /= (0xd1::Word8) = error "Bad V[100]"
+    -- TMP
+    | head (take 1 (drop (255*4) vs)) /= (0x67::Word8) = error "Bad V[255]"
+    -- TMP
+    | i==0 && head (take 1 (drop (0*4) x)) /= (0xe1::Word8) = error "Bad X[0]"
     | otherwise = do
         cfg <- ask
         let n = memoryCost cfg
         let r = blockSize cfg
-        let i1 = take 8 (drop (4*(2*r-1)*16 + 64-8) x)
-        let jj = integerify i1 1024
-        j <- trace' "jj: %s" (word8ArrayToHexArray i1 8) $ jj `mod` n
+        --let i1 = take 8 (drop (240*4) x)
+        --let jj = integerify i1 1024
+        --j <- trace' "jj: %s" (word8ArrayToHexArray i1 8) $ jj `mod` n
         --j <- trace' "jj: %d" (length i1) $ jj `mod` n
+        let j = 0
 
         let v = take (128*r) (drop (128*r*j) vs)
         let t = zipWith xor x v
         --t2 <- trace'' "j=%d X=%s" j ((word8ArrayToHexArray (drop 0 x) 4))  $ t
         -- OK: V[0..2043]
-        t2 <- trace'' "j=%d X[0]=%s" j ((word8ArrayToHexArray x 4))  $ t
-        --t2 <- trace' "V[]=%s" ((word8ArrayToHexArray (drop (4*0) vs) 4))  $ t
+        t2 <- trace' "X[]=%s" ((word8ArrayToHexArray (drop (0*4) x) 4))  $ t
+        --t2 <- trace' "V[]=%s" ((word8ArrayToHexArray (drop (0*4) vs) 4))  $ t
         --t2 <- trace'' "j=%d XXX=%d" j (length vs)  $ t
 
-        blockMix t2 [] 0
+        out <- blockMix t2 0
+        -- Only return the new X value
+        return $ drop (length out - 128*r) out
 
 
 {-
@@ -202,20 +213,19 @@ romMix bytes
 
         -- 1-2.
         --
+        -- N=2
         -- XXX: V[0] = X
-        --      V[1] = scryptBlockMix(V[1-1])
-        --      V[2] = scryptBlockMix(V[2-1])
-        --      ...
-        --      X = scryptBlockMix(V[n-1])
+        --      V[1] = scryptBlockMix(V[0])
+        --      X = scryptBlockMix(V[1])
         --
         -- Note: the final output block from scryptBlockMix is not part of V[]
         -- but it is used in step 3!
         let v0 = bytes
-        vs <- foldlM (blockMix bytes) v0 [0..n-1]
+        out <- foldlM blockMix v0 [0..n-1]
 
         -- 3-4.
-        --let x = drop (length vs - 128*r) vs
-        let x = take (128*r) vs
+        let vs = take (128*r*n) out
+        let x = drop (128*r*n) out
         foldlM (xorBlockMix vs) x [0..n-1]
 
 {-
