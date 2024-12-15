@@ -38,7 +38,7 @@ HSH_SCRYPT_ARGS += -p $(SCRYPT_PARALLELISATION)
 
 ################################################################################
 
-build: reset-profile tests/rfc/RFC-6234
+build: reset-profile tests/rfc/RFC-6234 tests/main.go
 	cabal build -v0
 	mkdir -p tests/bin
 	clang -w tests/rfc/Sha1.c -o tests/bin/Sha1

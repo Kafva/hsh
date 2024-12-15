@@ -24,7 +24,6 @@ calculate :: [Word8] -> [Word8] -> Reader Config [Word8]
 calculate bytes key = do
     cfg <- ask
     let hashFunction = innerAlgorithm cfg
-    let hashLen = innerAlgorithmLength cfg
 
     let paddedKey = padEndZero key 64
     let innerKey = map (xor 0x36) paddedKey
@@ -32,4 +31,6 @@ calculate bytes key = do
     let innerDigest = runReader (hashFunction $ innerKey ++ bytes) cfg
     let outerDigest = runReader (hashFunction $ outerKey ++ innerDigest) cfg
 
-    trace' "[Hmac] output: %s" (word8ArrayToHexArray outerDigest hashLen) outerDigest
+    -- let hashLen = innerAlgorithmLength cfg
+    -- trace' "[Hmac] output: %s" (word8ArrayToHexArray outerDigest hashLen) outerDigest
+    return outerDigest
