@@ -41,7 +41,7 @@ HSH_SCRYPT_ARGS += -p $(SCRYPT_PARALLELISATION)
 ################################################################################
 
 build: reset-profile tests/rfc/RFC-6234 tests/main.go
-	cabal build -v0
+	cabal build
 	mkdir -p tests/bin
 	clang -w tests/rfc/Sha1.c -o tests/bin/Sha1
 	clang -w tests/rfc/Md5.c -o tests/bin/Md5
@@ -163,7 +163,7 @@ reset-profile:
 	rm -f cabal.project.local
 
 profile: $(INPUTFILE) reset-profile
-	cabal build -v0
+	cabal build
 	cabal v2-configure --enable-profiling
 	@# The program will accept runtime options after +RTS when compiled with `-rtsopts`,
 	@# A .prof report is generated with `-p`.
