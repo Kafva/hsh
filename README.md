@@ -1,6 +1,6 @@
 # hsh
 Basic implementations of various crypto algorithms such as MD5, SHA1 and SHA224-256.
-The performance is very not good, debug logs for each step can be printed with `-d`.
+The performance is very not good.
 
 ```bash
 # Run
